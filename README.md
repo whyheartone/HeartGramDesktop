@@ -47,7 +47,7 @@
 
 Нужны Windows 10/11 x64, Visual Studio 2022 (MSVC 14.44), CMake, Python 3.11 (embeddable) и подготовленные библиотеки, как для [Telegram Desktop](https://github.com/telegramdesktop/tdesktop/blob/dev/docs/building-win.md) (см. `docs/building-win.md`). Дополнительно для плагинов нужен `Libraries/win64/python311` с заголовками и `python311.lib`.
 
-Скрипты, которыми собираются и пакуются exe, лежат в `heartgram-tools/`: `build_low.ps1` (сборка с пониженным приоритетом, финальная линковка занимает около 10 ГБ памяти) и `make_portable.py` (упаковка в один exe, ключ `--lite` для Lite). Список изменений: `heartgram-tools/PATCHNOTES.md`.
+Финальная линковка занимает около 10 ГБ памяти, лучше собирать с пониженным приоритетом. Скрипт упаковки в один exe лежит в `heartgram-tools/make_portable.py` (ключ `--lite` для Lite).
 
 Файл `Telegram/SourceFiles/ayu/features/project_badges/badge_secrets.h` с адресом и ключом сервера значков в репозиторий **не входит**. Без него клиент собирается, но список значков не загружается (используется `badge_secrets.example.h`).
 
@@ -57,7 +57,7 @@
 - [AyuGram Desktop](https://github.com/AyuGram/AyuGramDesktop), Radolyn Labs.
 - [exteraDesktop](https://github.com/metawka/exteraDesktop), [@metawka](https://t.me/metawka), и команда [exteraGram](https://exteragram.app).
 
-Лицензия: [GNU GPL v3](LICENSE) с [исключением OpenSSL](LEGAL). Оригинальный README AyuGram: [README.AyuGram.md](README.AyuGram.md).
+Лицензия: [GNU GPL v3](LICENSE) с [исключением OpenSSL](LEGAL). Оригинальный проект: [AyuGram Desktop](https://github.com/AyuGram/AyuGramDesktop).
 
 ## English
 
