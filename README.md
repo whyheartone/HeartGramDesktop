@@ -1,156 +1,72 @@
-# AyuGram
+# HeartGram Desktop
 
-![AyuGram Logo](.github/AyuGram.png) ![AyuChan](.github/AyuChan.png)
+Неофициальный клиент Telegram для Windows на базе [AyuGram Desktop](https://github.com/AyuGram/AyuGramDesktop) с функциями [exteraGram](https://exteragram.app) и поддержкой плагинов.
+Сборка и изменения: [@whyheartone](https://t.me/whyheartone).
 
-[ English  |   [Русский](README-RU.md) ]
+> HeartGram не разрабатывается и не поддерживается Telegram, AyuGram и exteraGram. Используйте на свой риск.
 
-## Features
+[ Русский | [English](#english) ]
 
-- Full ghost mode (flexible)
-- Messages history
-- Anti-recall
-- Font customization
-- Streamer mode
-- Local Telegram Premium
-- Translator
-- Media preview & quick reaction on force click (macOS)
-- Enhanced appearance
+## Возможности
 
-And many more. Check out our [Documentation](https://docs.ayugram.one/desktop/).
+### Из AyuGram Desktop
+Режим призрака, история правок и удалённых сообщений, фильтры, оформление, приблизительное «был(а) в сети».
 
-<h3>
-  <details>
-    <summary>Preview</summary>
-    <table>
-      <tr>
-        <td><img src='.github/demos/demo1.png' width='268' alt='Preferences'></td>
-        <td><img src='.github/demos/demo2.png' width='268' alt='AyuGram Options'></td>
-        <td><img src='.github/demos/demo3.png' width='268' alt='Message Filters'></td>
-      </tr>
-      <tr>
-        <td><img src='.github/demos/demo4.png' width='268' alt='Appearance'></td>
-        <td><img src='.github/demos/demo5.png' width='268' alt='Chats'></td>
-      </tr>
-    </table>
-  </details>
-</h3>
+### Плеер
+- Полноэкранный плеер в стиле Material Design 3: обложка, очередь со всеми треками, панель скорости.
+- Текст песни с плавной сменой строк и выбором шрифта плеера.
+- Фон в такт музыке по алгоритму exteraGram: анализ темпа, сильных долей и фраз, вращающиеся пятна, пульс и вспышка на дропе. Рисуется на видеокарте.
+- Отдельная громкость для песен и для голосовых и кружков (включается в настройках).
 
-## Downloads
+### Чаты и интерфейс
+- Настройки exteraGram: чаты, боковое меню, навигация, быстрые действия, значки.
+- Подменю «Плагины» в меню сообщения. Режим задаётся в «Элементы контекстного меню»: «Показывать», «Скрывать» или «В расширенное» (с Shift или Ctrl).
+- «Детали» сообщения: ID сообщения, чата и отправителя, дата, правки, пересылка, файл.
+- Animated Messages встроено: 12 стилей появления сообщений, пресеты, анимация дат.
+- Калькулятор в поле ввода: `2+2=` показывает результат серым, пробел вставляет.
+- Значки проекта (необязательно): сердечки у имён и окно «Поддержать разработку». Данные приходят с вашего сервера значков.
 
-### Windows
+### Плагины
+- Python-плагины в формате `.plugin`, как у exteraGram: установка по клику на файл, плашка «Проверено».
+- Разбор безопасности при установке: локально, по тексту плагина, с кусками кода и пояснениями. Показывается прямо в окне установки, SHA-256 копируется по клику.
+- Встроенный Python 3.11, Pillow, PyAV и rlottie-python. Заглушки Android-классов, чтобы многие плагины с телефона загружались на ПК.
+- Гифки, которые отправляет плагин, не остаются в «Сохранённых GIF».
 
-#### Official
+### Сборки
+- **HeartGram**: полный клиент.
+- **HeartGram Lite**: тот же клиент без функций AyuGram (режим призрака, сохранение удалённых, фильтры и т. п.).
+- Один exe: Python и модули распаковываются рядом при первом запуске.
 
-You can download prebuilt Windows binary from [Releases tab](https://github.com/AyuGram/AyuGramDesktop/releases) or from
-the [Telegram channel](https://t.me/AyuGramReleases).
+## Установка
 
-#### Winget
+1. Скачайте `HeartGram.exe` (или `HeartGram-lite.exe`) из [Releases](../../releases).
+2. Положите в любую папку и запустите. При первом запуске рядом появятся `python/` и `modules/` (это нормально).
+3. Данные аккаунта хранятся в `tdata/` рядом с exe (портативный режим).
 
-```bash
-winget install RadolynLabs.AyuGramDesktop
-```
+## Сборка
 
-#### Scoop
+Нужны Windows 10/11 x64, Visual Studio 2022 (MSVC 14.44), CMake, Python 3.11 (embeddable) и подготовленные библиотеки, как для [Telegram Desktop](https://github.com/telegramdesktop/tdesktop/blob/dev/docs/building-win.md) (см. `docs/building-win.md`). Дополнительно для плагинов нужен `Libraries/win64/python311` с заголовками и `python311.lib`.
 
-```bash
-scoop bucket add extras
-scoop install ayugram
-```
+Скрипты, которыми собираются и пакуются exe, лежат в `heartgram-tools/`: `build_low.ps1` (сборка с пониженным приоритетом, финальная линковка занимает около 10 ГБ памяти) и `make_portable.py` (упаковка в один exe, ключ `--lite` для Lite). Список изменений: `heartgram-tools/PATCHNOTES.md`.
 
-#### Self-built
+Файл `Telegram/SourceFiles/ayu/features/project_badges/badge_secrets.h` с адресом и ключом сервера значков в репозиторий **не входит**. Без него клиент собирается, но список значков не загружается (используется `badge_secrets.example.h`).
 
-Follow [official guide](https://github.com/AyuGram/AyuGramDesktop/blob/dev/docs/building-win-x64.md) if you want to
-build by yourself.
+## Благодарности и лицензия
 
-### macOS
+- [Telegram Desktop](https://github.com/telegramdesktop/tdesktop), Telegram FZ-LLC.
+- [AyuGram Desktop](https://github.com/AyuGram/AyuGramDesktop), Radolyn Labs.
+- [exteraDesktop](https://github.com/metawka/exteraDesktop), [@metawka](https://t.me/metawka), и команда [exteraGram](https://exteragram.app).
 
-#### Official
+Лицензия: [GNU GPL v3](LICENSE) с [исключением OpenSSL](LEGAL). Оригинальный README AyuGram: [README.AyuGram.md](README.AyuGram.md).
 
-You can download prebuilt macOS package from [Releases tab](https://github.com/AyuGram/AyuGramDesktop/releases).
+## English
 
-#### Homebrew
+HeartGram Desktop is an unofficial Telegram client for Windows built on top of AyuGram Desktop, with exteraGram features and Python plugin support.
 
-```bash
-brew install --cask ayugram
-```
+- Everything from AyuGram Desktop (ghost mode, message history, filters) plus exteraGram-style settings.
+- A full-screen Material Design 3 player: queue with every track, synced lyrics, speed panel, player font, and a music-synced background ported from exteraGram's beat tracker. Separate volume for songs and for voice/round messages.
+- Python plugins (`.plugin`) with an embedded Python 3.11 runtime and Android-class shims, plus a local safety review with code snippets shown right in the install window.
+- A "Plugins" submenu in the message menu (shown, hidden, or with Shift/Ctrl), message details with chat and sender IDs, built-in Animated Messages, an inline calculator, project badges.
+- A single-file portable exe and a Lite build without AyuGram's ghost-mode/anti-recall features.
 
-### Arch Linux
-
-#### From source (recommended)
-
-Install `ayugram-desktop` from [AUR](https://aur.archlinux.org/packages/ayugram-desktop).
-
-#### Prebuilt binaries
-
-Install `ayugram-desktop-bin` from [AUR](https://aur.archlinux.org/packages/ayugram-desktop-bin).
-
-Note: these binaries aren't officially maintained by us.
-
-### NixOS
-
-#### Flake (recommended)
-
-Install `ayugram-desktop` from [ndfined-crp/ayugram-desktop](https://github.com/ndfined-crp/ayugram-desktop)
-
-#### Nixpkgs
-
-Install `ayugram-desktop` from [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=ayugram-desktop)
-
-### ALT Linux
-
-[Sisyphus](https://packages.altlinux.org/en/sisyphus/srpms/ayugram-desktop/)
-
-### Gentoo Linux
-
-See [this repository](https://codeberg.org/OverLessArtem/ayugram-ebuild-gentoo) for installation manual.
-
-### Void Linux
-See [this repository](https://codeberg.org/OverLessArtem/ayugram-template-void) for installation manual.
-
-### EPM
-
-`epm play ayugram`
-
-### Fedora
-
-From [RPM Fusion](https://admin.rpmfusion.org/pkgdb/package/free/ayugram-desktop/) repository.
-
-```bash
-dnf install ayugram-desktop
-```
-
-### Any other Linux distro
-
-Flatpak: https://github.com/0FL01/AyuGramDesktop-flatpak
-
-Or follow the [official guide](https://github.com/AyuGram/AyuGramDesktop/blob/dev/docs/building-linux.md).
-
-## Donation
-
-Enjoy using **AyuGram**? Consider sending us a tip!
-
-[Here's available methods.](https://docs.ayugram.one/donate/)
-
-## Credits
-
-### Telegram clients
-
-- [Telegram Desktop](https://github.com/telegramdesktop/tdesktop)
-- [Kotatogram](https://github.com/kotatogram/kotatogram-desktop)
-- [64Gram](https://github.com/TDesktop-x64/tdesktop)
-- [Forkgram](https://github.com/forkgram/tdesktop)
-
-### Libraries used
-
-- [JSON for Modern C++](https://github.com/nlohmann/json)
-- [SQLite](https://github.com/sqlite/sqlite)
-- [sqlite_orm](https://github.com/fnc12/sqlite_orm)
-- [androidx sources](https://github.com/androidx/androidx)
-
-### Icons
-
-- [Solar Icon Set](https://www.figma.com/community/file/1166831539721848736)
-
-### Bots
-
-- [TelegramDB](https://t.me/tgdatabase) for username lookup by ID (until closing free inline mode at 2 April 2026)
+Download the exe from [Releases](../../releases), put it in any folder and run it. Licensed under GNU GPL v3. Not affiliated with Telegram, AyuGram or exteraGram.
