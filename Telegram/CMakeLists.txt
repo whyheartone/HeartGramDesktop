@@ -2014,6 +2014,8 @@ PRIVATE
     extera/extera_player_box.h
     extera/extera_player_screen.cpp
     extera/extera_rhythm.cpp
+    extera/extera_url_repair.cpp
+    extera/extera_url_repair.h
     extera/extera_rhythm.h
     extera/extera_update.h
     extera/extera_streamer.h

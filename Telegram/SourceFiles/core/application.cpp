@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/application.h"
+#include "extera/extera_url_repair.h"
 #include "extera/extera_update.h"
 #include "extera/extera_streamer.h"
 
@@ -2110,9 +2111,15 @@ void Application::RegisterUrlScheme() {
 	const auto arguments = Launcher::Instance().customWorkingDir()
 		? u"-workdir \"%1\""_q.arg(cWorkingDir())
 		: QString();
+	// The running exe is the reliable path: cExeDir() may point to where
+	// the portable build was unpacked from.
+	const auto executable = QCoreApplication::applicationFilePath();
+	LOG(("Register url scheme: exe '%1', shortcuts path '%2'."
+		).arg(executable
+		).arg(Platform::ExecutablePathForShortcuts()));
 
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
-		.executable = Platform::ExecutablePathForShortcuts(),
+		.executable = executable,
 		.arguments = arguments,
 		.protocol = u"tg"_q,
 		.protocolName = u"Telegram Link"_q,
@@ -2123,7 +2130,7 @@ void Application::RegisterUrlScheme() {
 	});
 
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
-		.executable = Platform::ExecutablePathForShortcuts(),
+		.executable = executable,
 		.arguments = arguments,
 		.protocol = u"tonsite"_q,
 		.protocolName = u"TonSite Link"_q,
@@ -2132,6 +2139,13 @@ void Application::RegisterUrlScheme() {
 		.displayAppName = AppName.utf16(),
 		.displayAppDescription = AppName.utf16(),
 	});
+
+	const auto repaired = Extera::RepairStaleUrlHandlers(
+		executable,
+		arguments);
+	if (repaired) {
+		LOG(("Register url scheme: fixed %1 stale handler(s).").arg(repaired));
+	}
 }
 
 bool IsAppLaunched() {
