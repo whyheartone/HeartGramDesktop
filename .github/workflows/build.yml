@@ -1,11 +1,13 @@
 name: Build and release.
 
 # Windows x64 and Linux binaries. A pushed tag "v*" attaches them to a GitHub
-# Release. The first run on an empty cache may hit the 6 hour job limit: start
-# it by hand with "only_cache" on, repeat until the libraries are cached, then
-# run it normally.
+# Release. A push to a branch only warms the library caches unless the commit
+# message has "[build]": a cold cache can hit the 6 hour job limit, so the
+# libraries are built first and the application on a later run.
 on:
   push:
+    branches:
+      - tg-7.4.1
     tags:
       - 'v*'
   workflow_dispatch:
@@ -25,7 +27,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      ONLY_CACHE: ${{ inputs.only_cache && 'true' || 'false' }}
+      ONLY_CACHE: ${{ (inputs.only_cache == true || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') && !contains(github.event.head_commit.message, '[build]'))) && 'true' || 'false' }}
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
 
     defaults:
@@ -155,7 +157,7 @@ jobs:
           cd %TBUILD%\%REPO_NAME%\Telegram
 
           call configure.bat ^
-          x64 ^
+          -G "Ninja Multi-Config" ^
           qt6 ^
           -D TDESKTOP_API_ID=%TDESKTOP_API_ID% ^
           -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% ^
@@ -189,7 +191,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ONLY_CACHE: ${{ inputs.only_cache && 'true' || 'false' }}
+      ONLY_CACHE: ${{ (inputs.only_cache == true || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') && !contains(github.event.head_commit.message, '[build]'))) && 'true' || 'false' }}
       IMAGE_TAG: tdesktop:centos_env
 
     steps:
@@ -202,6 +204,7 @@ jobs:
         run: |
           sudo apt update
           curl -sSL https://install.python-poetry.org | python3 -
+          echo "CCACHE_DIR=$RUNNER_TEMP/.tdesktop-cache" >> $GITHUB_ENV
           cd Telegram/build/docker/centos_env
           poetry install
           DOCKERFILE=$(DEBUG= LTO= poetry run gen_dockerfile)
@@ -249,6 +252,14 @@ jobs:
           rm -rf ${{ runner.temp }}/.buildx-cache
           mv ${{ runner.temp }}/.buildx-cache{-new,}
 
+      - name: Restore compiler cache.
+        if: env.ONLY_CACHE == 'false'
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.OS }}-heartgram-ccache-${{ github.run_id }}
+          restore-keys: ${{ runner.OS }}-heartgram-ccache-
+
       - name: Secrets.
         if: env.ONLY_CACHE == 'false'
         env:
@@ -267,9 +278,11 @@ jobs:
           docker run --rm \
           -u $(id -u) \
           -v $PWD:/usr/src/tdesktop \
+          -v ${{ env.CCACHE_DIR }}:/var/cache/ccache \
           -e CONFIG=Release \
+          -e CCACHE_SLOPPINESS=pch_defines,time_macros \
           $IMAGE_TAG \
-          /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
+          env -u CCACHE_DISABLE /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_CONFIGURATION_TYPES=Release \
           -D TDESKTOP_API_ID=$TDESKTOP_API_ID \
           -D TDESKTOP_API_HASH=$TDESKTOP_API_HASH \
