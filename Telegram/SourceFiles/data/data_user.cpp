@@ -688,7 +688,11 @@ bool UserData::readDatesPrivate() const {
 }
 
 bool UserData::allowsForwarding() const {
+#ifdef HEARTGRAM_LITE
+	return !isAyuNoForwards();
+#else // HEARTGRAM_LITE
 	return true;
+#endif // HEARTGRAM_LITE
 }
 
 bool UserData::isAyuNoForwards() const {

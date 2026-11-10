@@ -8,6 +8,13 @@
 // deleted messages stay off and its promo is hidden.
 namespace HeartGram {
 
+#ifdef HEARTGRAM_LITE
+// The real Lite build (cmake -D HEARTGRAM_LITE=ON) doesn't compile those
+// features at all and is always lite.
+[[nodiscard]] constexpr bool IsLite() {
+	return true;
+}
+#else // HEARTGRAM_LITE
 [[nodiscard]] inline bool IsLite() {
 	static const auto result = [] {
 		static constexpr auto marker = "HEARTGRAM-LITE-BUILD";
@@ -24,5 +31,6 @@ namespace HeartGram {
 	}();
 	return result;
 }
+#endif // HEARTGRAM_LITE
 
 } // namespace HeartGram

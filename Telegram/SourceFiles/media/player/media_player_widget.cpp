@@ -1071,6 +1071,14 @@ void Widget::updateLyrics(crl::time position) {
 		|| _type != AudioMsgId::Type::Song) {
 		return;
 	}
+	if (_lyrics.front().at == Extera::kPlainLine) {
+		if (_lyricIndex != -1) {
+			_lyricIndex = -1;
+			_nameLabel->setMarkedText(_titleText);
+			updateLabelsGeometry();
+		}
+		return;
+	}
 	const auto i = std::upper_bound(
 		_lyrics.begin(),
 		_lyrics.end(),

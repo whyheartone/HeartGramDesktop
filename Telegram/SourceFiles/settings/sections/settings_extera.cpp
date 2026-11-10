@@ -61,6 +61,10 @@
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 
+// AyuGram includes
+#include "ayu/ayu_ui_settings.h"
+
+
 not_null<Ui::RpWidget*> AddInnerToggle(
 	not_null<Ui::VerticalLayout*> container,
 	const style::SettingsButton &st,
@@ -116,6 +120,42 @@ using Phrase = tr::phrase<>;
 	return keys.contains(key);
 }
 
+// One line under a switch that says what it really does.
+[[nodiscard]] QString FeatureHint(const QString &key) {
+	static const auto hints = QHash<QString, std::pair<QString, QString>>{
+		{ u"am_enabled"_q, { u"Новые сообщения появляются в открытом чате с анимацией."_q, u"New messages animate in an open chat."_q } },
+		{ u"am_on_open"_q, { u"Анимация и при первом открытии чата: сначала нижнее сообщение, за ним старые."_q, u"Also animate when a chat is first opened, newest first."_q } },
+		{ u"am_dark_safe"_q, { u"Сообщение до начала анимации остаётся чуть видимым, без чёрных вспышек на тёмной теме."_q, u"A message stays faintly visible before its animation starts, no black flashes on dark themes."_q } },
+		{ u"am_reduce_motion"_q, { u"Движение слабее почти вдвое."_q, u"Motion is almost halved."_q } },
+		{ u"am_follow_profile"_q, { u"Стиль и скорость берутся из пресета, а не из настроек ниже."_q, u"Style and speed come from the preset, not from the settings below."_q } },
+		{ u"am_dates"_q, { u"Плашки с датами тоже появляются с анимацией."_q, u"Date separators animate too."_q } },
+		{ u"am_random_chat"_q, { u"У каждого чата свой постоянный случайный стиль."_q, u"Every chat keeps its own random style."_q } },
+		{ u"disable_number_rounding"_q, { u"Точные числа вместо округлённых вроде 1,2K."_q, u"Exact numbers instead of rounded ones like 1.2K."_q } },
+		{ u"relative_last_seen"_q, { u"«Был(а) 5 минут назад» вместо точного времени."_q, u"Seen 5 minutes ago instead of the exact time."_q } },
+		{ u"approx_last_seen"_q, { u"Для скрытого времени визита показывает примерное, например «в ~14:48»."_q, u"Shows an approximate time like at ~14:48 when the exact one is hidden."_q } },
+		{ u"hide_status"_q, { u"Прячет ваш эмодзи-статус возле имени в боковом меню."_q, u"Hides your emoji status next to your name in the side menu."_q } },
+		{ u"sender_mini_avatars"_q, { u"В списке чатов перед сообщением группы показан маленький аватар отправителя."_q, u"The chat list shows a small sender avatar before the last group message."_q } },
+		{ u"comma_after_mention"_q, { u"После выбора @упоминания из подсказки ставится запятая."_q, u"A comma follows an @mention picked from the suggestions."_q } },
+		{ u"online_indicator"_q, { u"Зелёная точка у аватара отправителя, если он сейчас в сети."_q, u"A green dot on the sender avatar when they are online."_q } },
+		{ u"forward_count"_q, { u"Число пересылок поста под сообщением."_q, u"Number of forwards under a post."_q } },
+		{ u"always_send_hd"_q, { u"Фото отправляются в высоком качестве по умолчанию."_q, u"Photos are sent in high quality by default."_q } },
+		{ u"prefer_original_quality"_q, { u"Для фото и видео выбирается исходное качество, где оно есть."_q, u"Photos and videos use the original quality where available."_q } },
+		{ u"md3_sliders"_q, { u"Ползунки в стиле Material 3."_q, u"Material 3 style sliders."_q } },
+		{ u"md3_chat_list"_q, { u"Чаты в списке лежат скруглёнными плитками."_q, u"Chats in the list are rounded tiles."_q } },
+		{ u"md3_menus"_q, { u"Пункты контекстных меню собраны в блоки."_q, u"Context menu items are grouped in blocks."_q } },
+		{ u"md3_settings"_q, { u"Строки настроек и профиля собраны в карточки."_q, u"Settings and profile rows are grouped in cards."_q } },
+		{ u"md3_dialogs"_q, { u"Скруглённые окна, тени и кнопки Material 3."_q, u"Rounded windows, shadows and buttons."_q } },
+		{ u"player_md3"_q, { u"Плеер на весь экран в стиле Material 3."_q, u"The full screen player in Material 3."_q } },
+		{ u"player_mini_ring"_q, { u"Прогресс трека кольцом вокруг обложки в мини-плеере."_q, u"Track progress as a ring around the mini player cover."_q } },
+		{ u"topbar_avatar"_q, { u"Аватар собеседника в шапке открытого чата."_q, u"The chat partner avatar in the header of an open chat."_q } },
+		{ u"plugins_compact_view"_q, { u"Список плагинов занимает меньше места."_q, u"The plugin list takes less space."_q } },
+	};
+	const auto i = hints.constFind(key);
+	return (i == hints.constEnd())
+		? QString()
+		: Extera::Text(i->first, i->second);
+}
+
 // Settings that change how already drawn messages look: the old messages keep
 // their layout until the app restarts, so offer a restart right away.
 [[nodiscard]] bool NeedsRestart(const QString &key) {
@@ -150,6 +190,11 @@ void AddToggle(
 		return;
 	}
 	const auto controller = builder.controller();
+	if (!subtitle) {
+		if (const auto hint = FeatureHint(key); !hint.isEmpty()) {
+			subtitle = rpl::single(hint);
+		}
+	}
 	const auto withSubtitle = bool(subtitle);
 	const auto &subtitleSt = st::exteraButtonWithSubtitle;
 	const auto button = builder.addButton({
@@ -177,7 +222,7 @@ void AddToggle(
 				- st.toggle.diameter * 2);
 			label->moveToLeft(
 				st.padding.left(),
-				st.padding.top() + st.height + st::exteraSubtitleSkip);
+				st.padding.top() + AyuUiSettings::settingsRowExtra() + st.height + st::exteraSubtitleSkip);
 			const auto extra = std::max(
 				label->height() - st::exteraSubtitle.style.font->height,
 				0);
@@ -416,8 +461,8 @@ void BuildAnimatedMessages(SectionBuilder &builder) {
 			});
 	});
 	builder.addAbout(rpl::single(text(
-		"По мотивам плагина Animated Messages (Natu).",
-		"Inspired by the Animated Messages plugin by Natu.")));
+		"Входящие и исходящие сообщения, а также даты в чате появляются с анимацией. Пресет задаёт стиль и скорость, ниже можно настроить их вручную.",
+		"Messages and date separators appear with an animation. The preset sets style and speed, you can tune them by hand below.")));
 }
 
 void AddValueChoice(
@@ -1189,7 +1234,7 @@ void AddStreamerRow(SectionBuilder &builder) {
 			- toggle->width());
 		label->moveToLeft(
 			st.padding.left(),
-			st.padding.top() + st.height + st::exteraSubtitleSkip);
+			st.padding.top() + AyuUiSettings::settingsRowExtra() + st.height + st::exteraSubtitleSkip);
 	}, toggle->lifetime());
 }
 
@@ -1441,39 +1486,6 @@ void BuildAppearance(SectionBuilder &builder) {
 			});
 		AddToggle(
 			builder,
-			u"system_emoji"_q,
-			tr::lng_extera_system_emoji());
-		AddSwitchGroup(
-			builder,
-			u"material_design"_q,
-			tr::lng_extera_material,
-			{
-				{ u"md3_sliders"_q, &tr::lng_extera_md3_sliders },
-				{ u"md3_switches"_q, &tr::lng_extera_md3_switches },
-					{
-						u"player_md3"_q,
-						nullptr,
-						Extera::Text(
-							QString::fromUtf8("Плеер Material 3"),
-							QString::fromUtf8("Material 3 player")),
-					},
-					{
-						u"player_mini_ring"_q,
-						nullptr,
-						Extera::Text(
-							QString::fromUtf8("Кольцо в мини-плеере"),
-							QString::fromUtf8("Ring in the mini player")),
-					},
-					{
-						u"topbar_avatar"_q,
-						nullptr,
-						Extera::Text(
-							QString::fromUtf8("Аватар в шапке чата"),
-							QString::fromUtf8("Avatar in the chat header")),
-					},
-			});
-		AddToggle(
-			builder,
 			u"custom_chat_themes"_q,
 			tr::lng_extera_custom_themes());
 	});
@@ -1658,10 +1670,7 @@ void BuildChats(SectionBuilder &builder) {
 			u"message_menu"_q,
 			tr::lng_extera_message_menu,
 			{
-				{ u"menu_copy_photo"_q, &tr::lng_extera_menu_copy_photo },
-				{ u"menu_save"_q, &tr::lng_extera_menu_save },
 				{ u"menu_repeat"_q, &tr::lng_extera_menu_repeat },
-				{ u"menu_history"_q, &tr::lng_extera_menu_history },
 			});
 		AddToggle(
 			builder,
@@ -1789,56 +1798,13 @@ void BuildPlugins(SectionBuilder &builder) {
 }
 
 void BuildPluginsEngine(SectionBuilder &builder) {
-	const auto controller = builder.controller();
-
 	builder.addSkip();
 	builder.addSubsectionTitle(tr::lng_extera_plugins_settings());
 	builder.card([&] {
 		AddToggle(
 			builder,
-			u"plugins_developer_mode"_q,
-			tr::lng_extera_plugins_developer());
-		AddToggle(
-			builder,
 			u"plugins_compact_view"_q,
 			tr::lng_extera_plugins_compact());
-		const auto unknownStates = std::make_shared<rpl::event_stream<bool>>();
-		const auto unknown = builder.addButton({
-			.id = u"extera/plugins_unknown_sources"_q,
-			.title = tr::lng_extera_plugins_unknown(),
-			.st = &st::settingsButtonNoIcon,
-			.toggled = unknownStates->events_starting_with(
-				Extera::Bool(u"plugins_unknown_sources"_q)),
-		});
-		if (unknown) {
-			unknown->toggledChanges(
-			) | rpl::filter([](bool value) {
-				return value != Extera::Bool(u"plugins_unknown_sources"_q);
-			}) | rpl::on_next([=](bool value) {
-				if (!value) {
-					Config().setBool(u"plugins_unknown_sources"_q, false);
-					return;
-				}
-				const auto confirmed = std::make_shared<bool>(false);
-				controller->show(Ui::MakeConfirmBox({
-					.text = tr::lng_extera_plugins_unknown_warning(
-						tr::now,
-						tr::rich),
-					.confirmed = [=](Fn<void()> close) {
-						*confirmed = true;
-						Config().setBool(u"plugins_unknown_sources"_q, true);
-						close();
-					},
-					.cancelled = [=](Fn<void()> close) {
-						unknownStates->fire(false);
-						close();
-					},
-					.confirmText = tr::lng_extera_plugins_unknown_allow(),
-					.confirmStyle = &st::attentionBoxButton,
-					.title = tr::lng_extera_plugins_unknown(),
-				}));
-			}, unknown->lifetime());
-		}
 		AddToggle(
 			builder,
 			u"plugins_safe_mode"_q,
@@ -2031,6 +1997,15 @@ void BuildOther(SectionBuilder &builder) {
 		u"О сборке HeartGram"_q,
 		u"About HeartGram"_q)));
 	builder.card([&] {
+		AddLink(
+			builder,
+			u"project_channel"_q,
+			rpl::single(Extera::Text(
+				u"Канал HeartGram"_q,
+				u"HeartGram channel"_q)),
+			u"@heartgramclient"_q,
+			u"https://t.me/heartgramclient"_q,
+			{ &st::exteraIconChannel });
 		AddLink(
 			builder,
 			u"build_author"_q,
@@ -2374,6 +2349,51 @@ void BuildExteraCategories(Builder::SectionBuilder &builder) {
 
 void BuildExteraGeneral(Builder::SectionBuilder &builder) {
 	BuildGeneral(builder);
+}
+
+void AddExteraMaterialGroup(Builder::SectionBuilder &builder) {
+	AddSwitchGroup(
+		builder,
+		u"material_design"_q,
+		tr::lng_extera_material,
+		{
+			{ u"md3_sliders"_q, &tr::lng_extera_md3_sliders },
+			{
+				u"md3_chat_list"_q,
+				nullptr,
+				Extera::Text(u"Список чатов плитками"_q, u"Chat list tiles"_q),
+			},
+			{
+				u"md3_menus"_q,
+				nullptr,
+				Extera::Text(u"Меню блоками"_q, u"Menu groups"_q),
+			},
+			{
+				u"md3_settings"_q,
+				nullptr,
+				Extera::Text(u"Настройки карточками"_q, u"Settings cards"_q),
+			},
+			{
+				u"md3_dialogs"_q,
+				nullptr,
+				Extera::Text(u"Окна и кнопки Material 3"_q, u"Material 3 windows and buttons"_q),
+			},
+			{
+				u"player_md3"_q,
+				nullptr,
+				Extera::Text(u"Плеер Material 3"_q, u"Material 3 player"_q),
+			},
+			{
+				u"player_mini_ring"_q,
+				nullptr,
+				Extera::Text(u"Кольцо в мини-плеере"_q, u"Ring in the mini player"_q),
+			},
+			{
+				u"topbar_avatar"_q,
+				nullptr,
+				Extera::Text(u"Аватар в шапке чата"_q, u"Avatar in the chat header"_q),
+			},
+		});
 }
 
 void BuildExteraAppearance(Builder::SectionBuilder &builder) {

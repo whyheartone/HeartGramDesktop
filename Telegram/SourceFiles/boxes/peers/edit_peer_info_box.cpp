@@ -99,6 +99,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QTextBoundaryFinder>
 #include <QtSvg/QSvgRenderer>
 
+// AyuGram includes
+#include "ayu/ayu_ui_settings.h"
+
+
 namespace {
 
 constexpr auto kBotManagerUsername = "BotFather"_cs;
@@ -3196,7 +3200,7 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 		label->resizeToWidth(std::min(required, available));
 		label->moveToRight(
 			st.labelPosition.x(),
-			st.labelPosition.y(),
+			st.labelPosition.y() + AyuUiSettings::settingsRowExtra(),
 			width);
 	}, label->lifetime());
 
@@ -3220,6 +3224,7 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 			badge->setVisible(available >= badge->width());
 			if (!badge->isHidden()) {
 				const auto top = st.button.padding.top()
+					+ AyuUiSettings::settingsRowExtra()
 					+ st.button.style.font->ascent
 					- st::settingsPremiumNewBadge.style.font->ascent
 					- st::settingsPremiumNewBadgePadding.top();

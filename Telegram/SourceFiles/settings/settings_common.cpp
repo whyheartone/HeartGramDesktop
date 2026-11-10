@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_common.h"
+#include "settings/settings_tiles.h"
 
 #include "base/timer.h"
 #include "lottie/lottie_icon.h"
@@ -33,6 +34,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 
 #include <QAction>
+
+// AyuGram includes
+#include "ayu/ayu_ui_settings.h"
+
 
 namespace Settings {
 namespace {
@@ -353,6 +358,7 @@ void AbstractSection::build(
 		_controller,
 		showOtherMethod(),
 		_showFinished.events());
+	AttachTiles(container);
 }
 
 void AbstractSection::keyPressEvent(QKeyEvent *e) {
@@ -508,7 +514,11 @@ void CreateRightLabel(
 				- st::settingsButtonRightSkip;
 			name->setText(text);
 			name->resizeToNaturalWidth(available);
-			name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+			name->moveToRight(
+				st::settingsButtonRightSkip,
+				st.padding.top()
+					+ AyuUiSettings::settingsRowExtra()
+					+ (st.style.font->height - name->height()) / 2);
 		}, name->lifetime());
 	} else if (v::text::is_marked(label)) {
 		rpl::combine(
@@ -526,7 +536,11 @@ void CreateRightLabel(
 				- st::settingsButtonRightSkip;
 			name->setMarkedText(text, context);
 			name->resizeToNaturalWidth(available);
-			name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+			name->moveToRight(
+				st::settingsButtonRightSkip,
+				st.padding.top()
+					+ AyuUiSettings::settingsRowExtra()
+					+ (st.style.font->height - name->height()) / 2);
 		}, name->lifetime());
 	}
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -538,6 +552,7 @@ SeparatedToggle AddSeparatedToggle(
 		bool checked) {
 	const auto container = button->parentWidget();
 	const auto toggle = Ui::CreateChild<Button>(container, nullptr, st);
+	toggle->setTransparentBg();
 	const auto checkView = button->lifetime().make_state<Ui::ToggleView>(
 		st.toggle,
 		checked,

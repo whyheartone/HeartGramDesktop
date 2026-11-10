@@ -173,6 +173,12 @@ void FiltersMenu::setup() {
 		refresh();
 	}, _outer.lifetime());
 
+	Extera::Config::Instance().boolChanges(
+		u"md3_chat_list"_q
+	) | rpl::on_next([=] {
+		refresh();
+	}, _outer.lifetime());
+
 	_activeFilterId = _session->activeChatsFilterCurrent();
 	_session->activeChatsFilter(
 	) | rpl::filter([=](FilterId id) {
@@ -427,6 +433,22 @@ void FiltersMenu::refresh() {
 		now.emplace(filter.id(), std::move(button));
 	}
 	_filters = std::move(now);
+	{
+		const auto tiles = Extera::Bool(u"md3_chat_list"_q);
+		auto order = std::vector<FilterId>();
+		for (const auto &filter : filters->list()) {
+			if (!filter.id() && Extera::Bool(u"hide_all_chats"_q)) {
+				continue;
+			}
+			order.push_back(filter.id());
+		}
+		for (auto i = 0; i != int(order.size()); ++i) {
+			const auto j = _filters.find(order[i]);
+			if (j != end(_filters)) {
+				j->second->setTile(tiles, !i, i + 1 == int(order.size()));
+			}
+		}
+	}
 	// Re-establish the list's Tab-stop on the folder that was focused (if it
 	// survived the rebuild), else on the active one, so a refresh - rename,
 	// deletion, Premium-state change - never leaves the list without a Tab-stop.

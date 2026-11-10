@@ -75,6 +75,34 @@ namespace {
 	return parts.join(QString::fromUtf8(" \xE2\x80\xA2 "));
 }
 
+[[nodiscard]] TextWithEntities WithLinks(const QString &text);
+
+// The version stays quiet, the author is a bold link.
+[[nodiscard]] TextWithEntities SubtitleMarked(const QJsonObject &info) {
+	const auto version = info.value(u"version"_q).toString();
+	const auto author = info.value(u"author"_q).toString();
+	auto prefix = QString();
+	if (!version.isEmpty()) {
+		prefix = u"v"_q + version;
+		if (!author.isEmpty()) {
+			prefix += QString::fromUtf8(" \xE2\x80\xA2 ");
+		}
+	}
+	auto result = TextWithEntities();
+	result.append(prefix);
+	auto linked = WithLinks(author);
+	const auto offset = result.text.size();
+	const auto length = linked.text.size();
+	result.append(std::move(linked));
+	if (length > 0) {
+		result.entities.push_back(EntityInText(
+			EntityType::Bold,
+			offset,
+			length));
+	}
+	return result;
+}
+
 void ShowInput(
 		not_null<Window::SessionController*> controller,
 		const QString &title,
@@ -641,6 +669,7 @@ void FillPluginsList(
 			auto namePadding = st::settingsButtonNoIcon.padding;
 			namePadding.setLeft(namePadding.left() + shift);
 			button->setPaddingOverride(namePadding);
+			button->setTransparentBg();
 			button->toggleOn(rpl::single(info.value(u"enabled"_q).toBool()));
 			button->toggledChanges(
 			) | rpl::on_next([=](bool enabled) {
@@ -655,7 +684,7 @@ void FillPluginsList(
 			const auto meta = card->add(
 				object_ptr<Ui::FlatLabel>(card, st::exteraSubtitle),
 				st::exteraPluginMetaPadding + style::margins(shift, 0, 0, 0));
-			meta->setMarkedText(WithLinks(Subtitle(info)), textContext);
+			meta->setMarkedText(SubtitleMarked(info), textContext);
 			const auto icon = Ui::CreateChild<Ui::AbstractButton>(card);
 			SetupPluginIcon(
 				icon,
@@ -874,6 +903,7 @@ private:
 	[[nodiscard]] static int Dp(int value);
 	[[nodiscard]] static float64 DpF(float64 value);
 	[[nodiscard]] float64 evidenceHeight(const Row &row) const;
+	[[nodiscard]] float64 codeHeight(const QString &code) const;
 	[[nodiscard]] float64 textHeight(
 		const QString &text,
 		const style::font &font,
@@ -884,7 +914,15 @@ private:
 		QPointF center,
 		int size,
 		QColor color) const;
+	struct Chip {
+		QString text;
+		QString level;
+		QString glyph;
+		QRectF rect;
+	};
+	void layoutChips(float64 width);
 	void toggle(Row &row);
+	void toggleOpen();
 	void buildFooter();
 	[[nodiscard]] Row *rowAt(QPoint point);
 
@@ -899,7 +937,15 @@ private:
 	QRectF _footerRect;
 	bool _copied = false;
 	float64 _summaryHeight = 0.;
+	float64 _codeWidth = 0.;
 	float64 _contentHeight = 0.;
+	float64 _sectionsTop = 0.;
+	float64 _sectionsFull = 0.;
+	QRectF _summaryRect;
+	std::vector<Chip> _chips;
+	float64 _chipsHeight = 0.;
+	Ui::Animations::Simple _openAnimation;
+	bool _open = false;
 	int _hover = -1;
 	mutable std::map<QString, QImage> _glyphs;
 
@@ -937,7 +983,6 @@ AnalysisReport::AnalysisReport(
 	_info = counts.value(u"info"_q).toInt();
 	const auto categories = report.value(u"categories"_q).toObject();
 	auto last = QString();
-	auto first = true;
 	for (const auto &entry : report.value(u"findings"_q).toArray()) {
 		const auto finding = entry.toObject();
 		const auto category = finding.value(u"category"_q).toString();
@@ -960,10 +1005,6 @@ AnalysisReport::AnalysisReport(
 				item.value(u"code"_q).toString());
 		}
 		row.more = std::max(0, finding.value(u"count"_q).toInt() - int(snippets.size()));
-		if (first && row.level == u"danger"_q) {
-			row.expanded = true;
-		}
-		first = false;
 		_sections.back().rows.push_back(std::move(row));
 	}
 	_sha = report.value(u"sha256"_q).toString();
@@ -973,11 +1014,7 @@ AnalysisReport::AnalysisReport(
 void AnalysisReport::buildFooter() {
 	_footer = Extera::Text(
 		QString::fromUtf8("Разбор сделан на вашем компьютере по тексту плагина. Это подсказка, а не гарантия: плагин мог скрыть своё поведение."),
-		QString::fromUtf8("The review ran on your computer over the plugin's text. It is a hint, not a guarantee: a plugin can hide what it does."))
-		+ u"\nSHA-256\n"_q + _sha.left(32) + u"\n"_q + _sha.mid(32)
-		+ u"\n"_q + (_copied
-			? ReportText("Скопировано", "Copied")
-			: ReportText("Нажмите на хеш, чтобы скопировать", "Click the hash to copy"));
+		QString::fromUtf8("The review ran on your computer over the plugin's text. It is a hint, not a guarantee: a plugin can hide what it does."));
 }
 
 float64 AnalysisReport::textHeight(
@@ -993,26 +1030,78 @@ float64 AnalysisReport::textHeight(
 		text).height();
 }
 
+float64 AnalysisReport::codeHeight(const QString &code) const {
+	const auto mono = st::normalFont->monospace();
+	const auto wrapped = QFontMetricsF(mono->f).boundingRect(
+		QRectF(0., 0., std::max(_codeWidth, DpF(40.)), 100000.),
+		Qt::AlignLeft | Qt::TextWrapAnywhere,
+		code).height();
+	return std::max(DpF(18.), wrapped + DpF(2.));
+}
+
 float64 AnalysisReport::evidenceHeight(const Row &row) const {
 	if (row.lines.empty()) {
 		return 0.;
 	}
-	const auto code = DpF(18.);
-	auto result = DpF(10.) + code * row.lines.size();
+	auto result = DpF(10.);
+	for (const auto &[number, code] : row.lines) {
+		result += codeHeight(code);
+	}
 	if (row.more > 0) {
 		result += DpF(20.);
 	}
 	return result + DpF(8.);
 }
 
+void AnalysisReport::layoutChips(float64 width) {
+	_chips.clear();
+	const auto font = st::semiboldFont;
+	const auto start = DpF(16.);
+	const auto limit = width - DpF(16.);
+	auto x = start;
+	auto y = 0.;
+	for (const auto &section : _sections) {
+		if (section.rows.empty() || section.title.isEmpty()) {
+			continue;
+		}
+		auto level = u"info"_q;
+		for (const auto &row : section.rows) {
+			if (row.level == u"danger"_q) {
+				level = u"danger"_q;
+			} else if (row.level == u"warn"_q && level != u"danger"_q) {
+				level = u"warn"_q;
+			}
+		}
+		const auto chipWidth = DpF(12.) + Dp(18) + DpF(8.)
+			+ font->width(section.title) + DpF(14.);
+		if (x + chipWidth > limit && x > start) {
+			x = start;
+			y += DpF(40.);
+		}
+		_chips.push_back({
+			section.title,
+			level,
+			section.rows.front().glyph,
+			QRectF(x, y, chipWidth, DpF(32.)),
+		});
+		x += chipWidth + DpF(8.);
+	}
+	_chipsHeight = _chips.empty() ? 0. : _chips.back().rect.bottom();
+}
+
 int AnalysisReport::resizeGetHeight(int newWidth) {
 	const auto padding = DpF(12.);
 	const auto side = DpF(16.);
 	const auto inner = newWidth - side * 2;
-	_summaryHeight = DpF(16.) + DpF(56.) + DpF(14.) + DpF(30.) + DpF(16.);
+	layoutChips(inner);
+	_summaryHeight = DpF(16.) + DpF(56.)
+		+ (_chips.empty() ? 0. : (DpF(14.) + _chipsHeight))
+		+ DpF(16.);
 	auto y = side + _summaryHeight + DpF(8.);
+	_sectionsTop = y;
 	const auto textFont = st::normalFont;
 	const auto textWidth = inner - padding * 2 - DpF(40.) - DpF(12.) - DpF(30.);
+	_codeWidth = inner - padding * 2 - DpF(52.) - DpF(62.);
 	for (auto &section : _sections) {
 		y += DpF(34.);
 		for (auto &row : section.rows) {
@@ -1029,7 +1118,11 @@ int AnalysisReport::resizeGetHeight(int newWidth) {
 		}
 		y += DpF(4.);
 	}
-	y += DpF(8.) + textHeight(_footer, textFont, inner) + DpF(24.);
+	_sectionsFull = y - _sectionsTop;
+	y = _sectionsTop + _sectionsFull * _openAnimation.value(_open ? 1. : 0.);
+	y += DpF(8.) + textHeight(_footer, textFont, inner)
+		+ (_sha.isEmpty() ? 0. : DpF(12.) + DpF(92.))
+		+ DpF(24.);
 	_contentHeight = y;
 	return int(std::ceil(y));
 }
@@ -1079,6 +1172,7 @@ void AnalysisReport::paintEvent(QPaintEvent *e) {
 		: u"safe"_q;
 	const auto verdictColor = LevelColor(verdictLevel);
 	const auto summary = QRectF(side, side, inner, _summaryHeight);
+	_summaryRect = summary;
 	p.setPen(Qt::NoPen);
 	p.setBrush(bg);
 	p.drawRoundedRect(summary, DpF(16.), DpF(16.));
@@ -1099,7 +1193,7 @@ void AnalysisReport::paintEvent(QPaintEvent *e) {
 	p.setPen(st::windowFg);
 	p.setFont(ScaledFont(18)->f);
 	p.drawText(
-		QRectF(textLeft, circle.top(), summary.right() - textLeft - DpF(16.), DpF(30.)),
+		QRectF(textLeft, circle.top(), summary.right() - textLeft - DpF(44.), DpF(30.)),
 		Qt::AlignLeft | Qt::AlignVCenter,
 		(_verdict == u"danger"_q)
 			? ReportText("Есть опасные возможности", "Has dangerous abilities")
@@ -1112,28 +1206,58 @@ void AnalysisReport::paintEvent(QPaintEvent *e) {
 		QRectF(textLeft, circle.top() + DpF(30.), summary.right() - textLeft - DpF(16.), DpF(24.)),
 		Qt::AlignLeft | Qt::AlignVCenter,
 		_name);
-	auto chipX = summary.left() + DpF(16.);
-	const auto chipY = circle.bottom() + DpF(14.);
 	const auto chipFont = st::semiboldFont;
-	const auto chip = [&](int count, const QString &label, const QString &level) {
-		const auto color = LevelColor(level);
-		const auto text = QString::number(count) + ' ' + label;
-		const auto width = chipFont->width(text) + DpF(24.);
-		const auto rect = QRectF(chipX, chipY, width, DpF(30.));
-		p.setPen(Qt::NoPen);
-		p.setBrush(AlphaOf(color, count > 0 ? 0.18 : 0.08));
-		p.drawRoundedRect(rect, DpF(15.), DpF(15.));
-		p.setPen(count > 0 ? color : st::windowSubTextFg->c);
+	const auto chipTop = circle.bottom() + DpF(14.);
+	for (const auto &chip : _chips) {
+		const auto color = LevelColor(chip.level);
+		const auto rect = chip.rect.translated(summary.left(), chipTop);
+		p.setPen(QPen(AlphaOf(color, 0.5), DpF(1.)));
+		p.setBrush(AlphaOf(color, 0.1));
+		p.drawRoundedRect(
+			rect.adjusted(0.5, 0.5, -0.5, -0.5),
+			DpF(9.),
+			DpF(9.));
+		drawGlyph(
+			p,
+			chip.glyph,
+			QPointF(rect.left() + DpF(12.) + Dp(18) / 2., rect.center().y()),
+			Dp(18),
+			color);
+		p.setPen(color);
 		p.setFont(chipFont->f);
-		p.drawText(rect, Qt::AlignCenter, text);
-		chipX += width + DpF(8.);
-	};
-	chip(_danger, ReportText("опасных", "dangerous"), u"danger"_q);
-	chip(_warn, ReportText("важных", "notable"), u"warn"_q);
-	chip(_info, ReportText("прочих", "other"), u"info"_q);
+		p.drawText(
+			QRectF(
+				rect.left() + DpF(12.) + Dp(18) + DpF(8.),
+				rect.top(),
+				rect.width(),
+				rect.height()),
+			Qt::AlignLeft | Qt::AlignVCenter,
+			chip.text);
+	}
+
+	const auto openProgress = _openAnimation.value(_open ? 1. : 0.);
+	{
+		p.save();
+		p.translate(QPointF(summary.right() - DpF(26.), circle.center().y()));
+		p.rotate(openProgress * 180.);
+		auto pen = QPen(st::windowSubTextFg->c, DpF(2.));
+		pen.setCapStyle(Qt::RoundCap);
+		pen.setJoinStyle(Qt::RoundJoin);
+		p.setPen(pen);
+		p.setBrush(Qt::NoBrush);
+		p.drawLine(QPointF(-DpF(6.), -DpF(3.)), QPointF(0., DpF(3.)));
+		p.drawLine(QPointF(0., DpF(3.)), QPointF(DpF(6.), -DpF(3.)));
+		p.restore();
+	}
 
 	// sections
+	p.save();
+	p.setClipRect(QRectF(0., _sectionsTop - DpF(4.), width(), _sectionsFull * openProgress + DpF(4.)));
+	p.setOpacity(p.opacity() * openProgress);
 	for (const auto &section : _sections) {
+		if (openProgress <= 0.01) {
+			break;
+		}
 		if (section.rows.empty()) {
 			continue;
 		}
@@ -1222,16 +1346,17 @@ void AnalysisReport::paintEvent(QPaintEvent *e) {
 				auto y = block.top() + DpF(5.);
 				for (const auto &[number, code] : row.lines) {
 					p.setPen(st::windowSubTextFg);
+					const auto height = codeHeight(code);
 					p.drawText(
 						QRectF(block.left() + DpF(6.), y, DpF(40.), DpF(18.)),
 						Qt::AlignRight | Qt::AlignVCenter,
 						QString::number(number));
 					p.setPen(st::windowFg);
 					p.drawText(
-						QRectF(block.left() + DpF(54.), y, block.width() - DpF(62.), DpF(18.)),
-						Qt::AlignLeft | Qt::AlignVCenter,
-						mono->elided(code, int(block.width() - DpF(62.))));
-					y += DpF(18.);
+						QRectF(block.left() + DpF(54.), y, block.width() - DpF(62.), height),
+						Qt::AlignLeft | Qt::AlignTop | Qt::TextWrapAnywhere,
+						code);
+					y += height;
 				}
 				if (row.more > 0) {
 					p.setPen(st::windowSubTextFg);
@@ -1245,22 +1370,61 @@ void AnalysisReport::paintEvent(QPaintEvent *e) {
 			}
 		}
 	}
+	p.restore();
+	const auto hashHeight = _sha.isEmpty() ? 0. : DpF(12.) + DpF(92.);
+	const auto footerTop = _contentHeight - DpF(24.) - hashHeight
+		- textHeight(_footer, st::normalFont, inner);
 	p.setPen(st::windowSubTextFg);
 	p.setFont(st::normalFont->f);
-	const auto footerTop = _contentHeight - DpF(24.)
-		- textHeight(_footer, st::normalFont, inner);
 	p.drawText(
 		QRectF(side, footerTop, inner, 1000.),
 		Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap,
 		_footer);
-	_footerRect = QRectF(
-		side,
-		footerTop,
-		inner,
-		textHeight(_footer, st::normalFont, inner));
+	_footerRect = QRectF();
+	if (!_sha.isEmpty()) {
+		const auto card = QRectF(
+			side,
+			_contentHeight - DpF(24.) - DpF(92.),
+			inner,
+			DpF(92.));
+		_footerRect = card;
+		p.setPen(Qt::NoPen);
+		p.setBrush(bg);
+		p.drawRoundedRect(card, DpF(14.), DpF(14.));
+		const auto left = card.left() + DpF(16.);
+		const auto wide = card.width() - DpF(32.);
+		p.setPen(st::windowSubTextFg);
+		p.setFont(st::semiboldFont->f);
+		p.drawText(
+			QRectF(left, card.top() + DpF(10.), wide, DpF(20.)),
+			Qt::AlignLeft | Qt::AlignVCenter,
+			u"SHA-256"_q);
+		const auto mono = st::normalFont->monospace();
+		p.setPen(st::windowActiveTextFg);
+		p.setFont(mono->f);
+		p.drawText(
+			QRectF(left, card.top() + DpF(32.), wide, DpF(20.)),
+			Qt::AlignLeft | Qt::AlignVCenter,
+			_sha.left(32));
+		p.drawText(
+			QRectF(left, card.top() + DpF(52.), wide, DpF(20.)),
+			Qt::AlignLeft | Qt::AlignVCenter,
+			_sha.mid(32));
+		p.setPen(st::windowSubTextFg);
+		p.setFont(st::normalFont->f);
+		p.drawText(
+			QRectF(left, card.top() + DpF(70.), wide, DpF(18.)),
+			Qt::AlignLeft | Qt::AlignVCenter,
+			_copied
+				? ReportText("Скопировано", "Copied")
+				: ReportText("Нажмите, чтобы скопировать", "Click to copy"));
+	}
 }
 
 AnalysisReport::Row *AnalysisReport::rowAt(QPoint point) {
+	if (!_open) {
+		return nullptr;
+	}
 	for (auto &section : _sections) {
 		for (auto &row : section.rows) {
 			if (row.rect.contains(point) && !row.lines.empty()) {
@@ -1284,8 +1448,23 @@ void AnalysisReport::toggle(Row &row) {
 		anim::easeOutCubic);
 }
 
+void AnalysisReport::toggleOpen() {
+	_open = !_open;
+	_openAnimation.start(
+		[=] {
+			resizeToWidth(width());
+			update();
+		},
+		_open ? 0. : 1.,
+		_open ? 1. : 0.,
+		crl::time(300),
+		anim::easeOutCubic);
+}
+
 void AnalysisReport::mousePressEvent(QMouseEvent *e) {
-	if (const auto row = rowAt(e->pos())) {
+	if (_summaryRect.contains(e->pos())) {
+		toggleOpen();
+	} else if (const auto row = rowAt(e->pos())) {
 		toggle(*row);
 	} else if (!_sha.isEmpty() && _footerRect.contains(e->pos())) {
 		QGuiApplication::clipboard()->setText(_sha);
@@ -1298,6 +1477,7 @@ void AnalysisReport::mousePressEvent(QMouseEvent *e) {
 
 void AnalysisReport::mouseMoveEvent(QMouseEvent *e) {
 	setCursor((rowAt(e->pos())
+		|| _summaryRect.contains(e->pos())
 		|| (!_sha.isEmpty() && _footerRect.contains(e->pos())))
 		? style::cur_pointer
 		: style::cur_default);
@@ -1524,11 +1704,16 @@ void AddMessageMenuItems(
 	auto submenu = std::make_unique<Ui::PopupMenu>(
 		menu,
 		st::defaultPopupMenu);
-	const auto context = MenuContext(item);
+	// The context (it starts the download of the replied media) is made
+	// when an entry is clicked, not for every right click on a message.
+	const auto itemId = item->fullId();
+	const auto session = &item->history()->session();
 	for (const auto &entry : entries) {
 		const auto id = entry.id;
 		submenu->addAction(entry.text, [=] {
-			ClickMenuItem(id, context);
+			if (const auto item = session->data().message(itemId)) {
+				ClickMenuItem(id, MenuContext(item));
+			}
 		});
 	}
 	menu->addAction(

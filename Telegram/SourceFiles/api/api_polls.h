@@ -48,6 +48,7 @@ public:
 	void deleteAnswer(FullMsgId itemId, const QByteArray &option);
 	void close(not_null<HistoryItem*> item);
 	void reloadResults(not_null<HistoryItem*> item);
+	void probeResults(not_null<HistoryItem*> item);
 	void requestStats(
 		FullMsgId itemId,
 		Fn<void(Data::StatisticalGraph)> done,
@@ -61,6 +62,7 @@ private:
 	base::flat_map<FullMsgId, mtpRequestId> _pollAddAnswerRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollReloadRequestIds;
+	base::flat_map<uint64, crl::time> _pollProbeTimes;
 
 };
 

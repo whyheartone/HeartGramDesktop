@@ -41,6 +41,8 @@ private:
 
 };
 
+inline constexpr auto kPlainLine = crl::time(-1);
+
 struct LyricLine {
 	crl::time at = 0;
 	QString text;

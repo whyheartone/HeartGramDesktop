@@ -1459,9 +1459,19 @@ bool OverlayWidget::hasCopyMediaRestriction(bool skipPremiumCheck) const {
 		if (story->call()) {
 			return true;
 		}
+#ifdef HEARTGRAM_LITE
+		return skipPremiumCheck
+			? !story->canDownloadIfPremium()
+			: !story->canDownloadChecked();
+#endif // HEARTGRAM_LITE
 	}
+#ifdef HEARTGRAM_LITE
+	return (_history && !_history->peer->allowsForwarding())
+		|| (_message && _message->forbidsSaving());
+#else // HEARTGRAM_LITE
 	// AyuGram: removed; allow downloading any stories
 	return false;
+#endif // HEARTGRAM_LITE
 }
 
 bool OverlayWidget::showCopyMediaRestriction(bool skipPRemiumCheck) {

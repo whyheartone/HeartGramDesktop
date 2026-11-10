@@ -36,6 +36,10 @@
 
 #include <QGraphicsOpacityEffect>
 
+// AyuGram includes
+#include "ayu/ayu_ui_settings.h"
+
+
 class PainterHighQualityEnabler;
 
 namespace Settings {
@@ -78,6 +82,7 @@ void AddBetaBadge(not_null<Button*> parent) {
 				+ parent->fullTextWidth()
 				+ st::settingsPremiumNewBadgePosition.x(),
 			st.padding.top()
+				+ AyuUiSettings::settingsRowExtra()
 				+ (st.style.font->height - badge->height()) / 2);
 	}, badge->lifetime());
 }
@@ -136,6 +141,7 @@ not_null<Ui::RpWidget*> AddInnerToggle(not_null<Ui::VerticalLayout*> container,
 		container.get(),
 		nullptr,
 		st);
+	toggleButton->setTransparentBg();
 
 	struct State final
 	{

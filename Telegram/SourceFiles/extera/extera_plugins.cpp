@@ -21,6 +21,7 @@
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "history/history_item.h"
+#include "storage/file_download.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
 #include "data/data_file_origin.h"
@@ -250,7 +251,7 @@ void KeepPluginGifsOutOfSaved(not_null<Main::Session*> session) {
 		const auto media = item ? item->media() : nullptr;
 		const auto document = media ? media->document() : nullptr;
 		if (!document
-			|| !document->isGifv()
+			|| !(document->isGifv() || document->isAnimation())
 			|| !SentByPlugin(document->filename())) {
 			return;
 		}
@@ -265,6 +266,7 @@ void KeepPluginGifsOutOfSaved(not_null<Main::Session*> session) {
 		};
 		unsave();
 		base::call_delayed(4000, session, unsave);
+		base::call_delayed(15000, session, unsave);
 	}, lifetime);
 }
 
@@ -413,6 +415,12 @@ bool TryWriteMedia(const MediaExport &data) {
 			: QFileInfo(document->filename()).suffix();
 		if (ext.isEmpty()) {
 			ext = (mime == u"video/mp4"_q) ? u"mp4"_q : u"bin"_q;
+		}
+		if (document->size > Storage::kMaxFileInMemory) {
+			// Saved with no file name it would have to sit in memory:
+			// too big, so a plugin gets the description without the file.
+			result.insert(u"too_big"_q, true);
+			return result;
 		}
 		data->documentData = document;
 		data->document = document->createMediaView();

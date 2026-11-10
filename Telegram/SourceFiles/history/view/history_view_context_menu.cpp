@@ -3089,7 +3089,13 @@ TextWithEntities TransribedText(not_null<HistoryItem*> item) {
 }
 
 bool ItemHasTtl(HistoryItem *item) {
+#ifdef HEARTGRAM_LITE
+	return (item && item->media())
+		? (item->media()->ttlSeconds() > 0)
+		: false;
+#else // HEARTGRAM_LITE
 	return false; // AyuGram: allow downloading files with ttl
+#endif // HEARTGRAM_LITE
 }
 
 } // namespace HistoryView

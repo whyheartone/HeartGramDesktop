@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 // AyuGram includes
 #include "ayu/ayu_settings.h"
+#include "settings/settings_tiles.h"
 
 
 namespace Info {
@@ -182,6 +183,7 @@ InnerWidget::InnerWidget(
 , _sublist(_controller->key().sublist())
 , _savedMessages(_controller->key().savedMessages() != nullptr)
 , _content(setupContent(this, origin)) {
+	::Settings::AttachTiles(_content.data());
 	_content->heightValue(
 	) | rpl::on_next([this](int height) {
 		if (!_inResize) {

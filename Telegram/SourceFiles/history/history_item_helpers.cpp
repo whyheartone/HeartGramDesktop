@@ -764,9 +764,11 @@ void ConfirmDeleteSelectedEphemeral(
 TextWithEntities DropDisallowedCustomEmoji(
 		not_null<PeerData*> to,
 		TextWithEntities text) {
+#ifndef HEARTGRAM_LITE
 	if (true) { // AyuGram: allow all premium emojis (via tg://emoji?id=...)
 		return text;
 	}
+#endif // HEARTGRAM_LITE
 
 	if (to->session().premium() || to->isSelf()) {
 		return text;

@@ -135,7 +135,31 @@ bool UnavailableReason::IgnoreSensitiveMark(
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
 std::vector<UnavailableReason> UnavailableReason::Extract(
 		const MTPvector<MTPRestrictionReason> *list) {
+#ifdef HEARTGRAM_LITE
+	if (!list) {
+		return {};
+	}
+	return ranges::views::all(
+		list->v
+	) | ranges::views::filter([](const MTPRestrictionReason &restriction) {
+		return restriction.match([&](const MTPDrestrictionReason &data) {
+			const auto platform = data.vplatform().v;
+			return false
+#ifdef OS_MAC_STORE
+				|| (platform == "ios"_q)
+#elif defined OS_WIN_STORE // OS_MAC_STORE
+				|| (platform == "ms"_q)
+#endif // OS_MAC_STORE || OS_WIN_STORE
+				|| (platform == "all"_q);
+		});
+	}) | ranges::views::transform([](const MTPRestrictionReason &restriction) {
+		return restriction.match([&](const MTPDrestrictionReason &data) {
+			return UnavailableReason{ qs(data.vreason()), qs(data.vtext()) };
+		});
+	}) | ranges::to_vector;
+#else // HEARTGRAM_LITE
 	return {};
+#endif // HEARTGRAM_LITE
 }
 
 bool ApplyBotMenuButton(

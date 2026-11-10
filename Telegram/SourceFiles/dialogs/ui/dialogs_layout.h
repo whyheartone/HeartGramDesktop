@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtGui/QPainterPath>
+
 #include "dialogs/ui/dialogs_quick_action_context.h"
 #include "ui/cached_round_corners.h"
 
@@ -77,6 +79,10 @@ struct PaintContext {
 	bool narrow = false;
 	bool displayUnreadInfo = false;
 	bool insideCommunity = false;
+	bool tiles = false;
+	bool tileFirst = true;
+	bool tileLast = true;
+	const QPainterPath *tilePath = nullptr;
 };
 
 extern const char kOptionDialogsMuteIcon[];

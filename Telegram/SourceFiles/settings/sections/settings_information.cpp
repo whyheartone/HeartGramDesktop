@@ -76,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QBuffer>
 
 // AyuGram includes
+#include "ayu/ayu_ui_settings.h"
 #include "ayu/ui/ayu_userpic.h"
 #include "ayu/utils/telegram_helpers.h"
 #include "ayu/features/project_badges/project_badges.h"
@@ -601,6 +602,7 @@ void SetupChatAutomation(
 			badge->setVisible(available >= badge->width());
 			if (!badge->isHidden()) {
 				const auto top = st.padding.top()
+					+ AyuUiSettings::settingsRowExtra()
 					+ st.style.font->ascent
 					- st::settingsPremiumNewBadge.style.font->ascent
 					- st::settingsPremiumNewBadgePadding.top();

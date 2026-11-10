@@ -1429,7 +1429,11 @@ crl::time MediaFile::ttlSeconds() const {
 }
 
 bool MediaFile::allowsForward() const {
+#ifdef HEARTGRAM_LITE
+	return !ttlSeconds();
+#else // HEARTGRAM_LITE
 	return true;
+#endif // HEARTGRAM_LITE
 }
 
 bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {

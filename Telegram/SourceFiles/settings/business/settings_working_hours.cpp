@@ -490,6 +490,7 @@ void AddWeekButton(
 		container.get(),
 		nullptr,
 		st);
+	toggleButton->setTransparentBg();
 	const auto checkView = button->lifetime().make_state<Ui::ToggleView>(
 		st.toggle,
 		false,

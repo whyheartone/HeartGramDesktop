@@ -4,6 +4,8 @@
 // but be respectful and credit the original author.
 //
 // Copyright @Radolyn, 2026
+#include "extera/extera_text.h"
+#include "extera/extera_media_origin.h"
 #include "ayu/ui/context_menu/context_menu.h"
 #include "ayu/features/heartgram_lite.h"
 
@@ -778,6 +780,36 @@ void AddMessageDetailsAction(not_null<Ui::PopupMenu*> menu, HistoryItem *item) {
 						tr::ayu_MessageDetailsDatacenterPC(tr::now),
 						mediaDC
 					));
+				}
+
+				if (const auto document = media->document();
+					document && Extera::HasOrigin(document)) {
+					const auto origin = Extera::DetectOrigin(document);
+					if (!origin) {
+						// Not on the disk: ask Telegram for the ends of the
+						// file, the row shows the result next time.
+						Extera::FetchOrigin(document);
+					}
+					menu2->addAction(Ui::ContextActionWithSubText(
+						menu2->menu(),
+						st::menuIconProfile,
+						Extera::Text(u"Устройство"_q, u"Device"_q),
+						!origin
+							? Extera::Text(u"определяется…"_q, u"checking…"_q)
+							: origin->device.isEmpty()
+							? Extera::Text(u"не определено"_q, u"unknown"_q)
+							: origin->device));
+					if (origin && !origin->raw.isEmpty()) {
+						const auto raw = origin->raw;
+						menu2->addAction(Ui::ContextActionWithSubText(
+							menu2->menu(),
+							st::menuIconInfo,
+							Extera::Text(u"Метаданные"_q, u"Metadata"_q),
+							raw.size() > 24 ? raw.left(24) + QChar(0x2026) : raw,
+							[=] {
+								QGuiApplication::clipboard()->setText(raw);
+							}));
+					}
 				}
 
 				if (isSticker) {

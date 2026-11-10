@@ -45,6 +45,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QApplication>
 
 // AyuGram includes
+#include "ayu/ayu_ui_settings.h"
+#include "ui/effects/animation_value.h"
 #include "styles/style_ayu_icons.h"
 #include "ayu/ui/ayu_userpic.h"
 
@@ -2130,8 +2132,49 @@ void PeerListContent::paintRowContent(
 		}
 	});
 
-	p.fillRect(0, 0, outerWidth, _rowHeight, bg);
-	row->paintRipple(p, st, 0, 0, outerWidth);
+	p.fillRect(0, 0, outerWidth, _rowHeight, st.button.textBg);
+	if (AyuUiSettings::isMaterialSettings()) {
+		const auto count = shownRowsCount();
+		const auto first = (index.value == 0);
+		const auto last = (index.value == count - 1);
+		const auto side = style::ConvertScale(6);
+		const auto top = style::ConvertScale(first ? 3 : 1);
+		const auto bottom = style::ConvertScale(last ? 3 : 1);
+		const auto big = std::min(
+			qreal(style::ConvertScale(20)),
+			_rowHeight * 0.32);
+		const auto small = qreal(style::ConvertScale(6));
+		const auto upper = first ? big : small;
+		const auto lower = last ? big : small;
+		const auto r = QRectF(
+			side,
+			top,
+			outerWidth - 2 * side,
+			_rowHeight - top - bottom);
+		auto path = QPainterPath();
+		path.moveTo(r.left() + upper, r.top());
+		path.lineTo(r.right() - upper, r.top());
+		path.arcTo(QRectF(r.right() - 2 * upper, r.top(), 2 * upper, 2 * upper), 90, -90);
+		path.lineTo(r.right(), r.bottom() - lower);
+		path.arcTo(QRectF(r.right() - 2 * lower, r.bottom() - 2 * lower, 2 * lower, 2 * lower), 0, -90);
+		path.lineTo(r.left() + lower, r.bottom());
+		path.arcTo(QRectF(r.left(), r.bottom() - 2 * lower, 2 * lower, 2 * lower), 270, -90);
+		path.lineTo(r.left(), r.top() + upper);
+		path.arcTo(QRectF(r.left(), r.top(), 2 * upper, 2 * upper), 180, -90);
+		path.closeSubpath();
+		auto hq = PainterHighQualityEnabler(p);
+		p.fillPath(path, anim::color(
+			st.button.textBg->c,
+			st::windowFg->c,
+			selected ? 0.08 : 0.045));
+		p.save();
+		p.setClipPath(path, Qt::IntersectClip);
+		row->paintRipple(p, st, 0, 0, outerWidth);
+		p.restore();
+	} else {
+		p.fillRect(0, 0, outerWidth, _rowHeight, bg);
+		row->paintRipple(p, st, 0, 0, outerWidth);
+	}
 	row->paintUserpic(
 		p,
 		st,

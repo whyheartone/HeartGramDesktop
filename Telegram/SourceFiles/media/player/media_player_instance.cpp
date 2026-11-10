@@ -380,6 +380,10 @@ void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 
 	_roundPlaying = false;
 	Core::App().floatPlayerToggleGifsPaused(false);
+	if (data->type == AudioMsgId::Type::Voice
+		&& std::exchange(_songPausedByRound, false)) {
+		play(AudioMsgId::Type::Song);
+	}
 }
 
 void Instance::refreshPlaylist(not_null<Data*> data) {
@@ -1403,6 +1407,17 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		if (_roundPlaying != activelyPlayingRound) {
 			_roundPlaying = activelyPlayingRound;
 			Core::App().floatPlayerToggleGifsPaused(activelyPlayingRound);
+			// WHY: the mixer only mutes the song under a round video, so it
+			// kept advancing silently and the position jumped afterwards.
+			const auto song = AudioMsgId::Type::Song;
+			if (activelyPlayingRound) {
+				if (ShowPauseIcon(getState(song).state)) {
+					_songPausedByRound = true;
+					pause(song);
+				}
+			} else if (std::exchange(_songPausedByRound, false)) {
+				play(song);
+			}
 		}
 		if (type == AudioMsgId::Type::Song) {
 			_listenTracker->update(state);

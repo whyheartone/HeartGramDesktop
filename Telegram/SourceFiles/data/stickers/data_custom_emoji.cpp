@@ -1047,9 +1047,11 @@ TextWithEntities SingleCustomEmoji(not_null<DocumentData*> document) {
 bool AllowEmojiWithoutPremium(
 		not_null<PeerData*> peer,
 		DocumentData *exactEmoji) {
+#ifndef HEARTGRAM_LITE
 	if (true) { // AyuGram: allow all premium emojis (via tg://emoji?id=...)
 		return true;
 	}
+#endif // HEARTGRAM_LITE
 
 	if (peer->isSelf()) {
 		return true;

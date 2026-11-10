@@ -121,6 +121,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 
 // AyuGram includes
+#include "ayu/ayu_ui_settings.h"
 #include "ayu/ui/utils/ayu_profile_values.h"
 #include "ayu/utils/telegram_helpers.h"
 #include "styles/style_ayu_styles.h"
@@ -1265,7 +1266,9 @@ rpl::producer<CreditsAmount> AddCurrencyAction(
 				.append(Info::ChannelEarn::MinorPart(balance)),
 			state->helper.context());
 		name->resizeToNaturalWidth(available);
-		name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+		name->moveToRight(
+			st::settingsButtonRightSkip,
+			st.padding.top() + AyuUiSettings::settingsRowExtra());
 	}, name->lifetime());
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
 	wrapButton->finishAnimating();
@@ -3532,7 +3535,8 @@ void SetupAddChannelMember(
 			- st::infoMembersButtonPosition.x();
 		add->moveToLeft(
 			availableWidth - add->width(),
-			st::infoMembersButtonPosition.y(),
+			st::infoMembersButtonPosition.y()
+				+ AyuUiSettings::settingsRowExtra(),
 			newWidth);
 	}, add->lifetime());
 }

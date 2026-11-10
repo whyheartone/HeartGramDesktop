@@ -17,6 +17,8 @@
 #include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
 #include "ui/controls/invite_link_label.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
@@ -139,11 +141,29 @@ void FillDonateQrBox(
 	Ui::AddSkip(box->verticalLayout());
 	Ui::AddSkip(box->verticalLayout());
 
-	const auto label = box->lifetime().make_state<Ui::InviteLinkLabel>(
-		box->verticalLayout(),
-		rpl::single(address),
-		Fn<base::unique_qptr<Ui::PopupMenu>()>());
-	box->verticalLayout()->add(label->take(), st::boxRowPadding);
+	const auto inner = style::ConvertScale(12);
+	const auto wrap = box->verticalLayout()->add(
+		object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+			box->verticalLayout(),
+			object_ptr<Ui::FlatLabel>(
+				box->verticalLayout(),
+				rpl::single(address),
+				st::boxLabel),
+			QMargins(inner, inner, inner, inner)),
+		st::boxRowPadding);
+	wrap->entity()->setBreakEverywhere(true);
+	wrap->entity()->setSelectable(true);
+	wrap->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(wrap);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+		p.drawRoundedRect(
+			wrap->rect(),
+			st::roundRadiusLarge,
+			st::roundRadiusLarge);
+	}, wrap->lifetime());
 
 	const auto copyButton = box->addButton(tr::lng_chat_link_copy(), [=] {
 		QGuiApplication::clipboard()->setText(address);

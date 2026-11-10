@@ -3466,6 +3466,9 @@ void Poll::draw(Painter &p, const PaintContext &context) const {
 	if (_poll->checkResultsReload(context.now)) {
 		history()->session().api().polls().reloadResults(_parent->data());
 	}
+	if (Extera::Bool(u"poll_results_before_voting"_q) && !_voted) {
+		history()->session().api().polls().probeResults(_parent->data());
+	}
 
 	const auto padding = st::msgPadding;
 	paintw -= padding.left() + padding.right();

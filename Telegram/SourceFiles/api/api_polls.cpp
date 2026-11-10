@@ -33,11 +33,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // AyuGram includes
 #include "ayu/ayu_settings.h"
 #include "ayu/utils/telegram_helpers.h"
+#include "extera/extera_config.h"
 
 
 namespace {
 
 constexpr auto kVoteRestrictionToastDuration = 5 * crl::time(1000);
+constexpr auto kResultsProbeInterval = 60 * crl::time(1000);
+
+[[nodiscard]] bool NeedsResultsProbe(
+		not_null<HistoryItem*> item,
+		not_null<PollData*> poll) {
+	if (!Extera::Bool(u"poll_results_before_voting"_q)
+		|| !item->isRegular()
+		|| poll->closed()
+		|| poll->voted()
+		|| poll->quiz()
+		|| poll->revotingDisabled()
+		|| poll->hideResultsUntilClose()
+		|| poll->totalVoters <= 0
+		|| poll->answers.empty()
+		|| !poll->sendingVotes.empty()
+		|| (poll->voteRestriction() != PollData::VoteRestriction::None)) {
+		return false;
+	}
+	return ranges::all_of(poll->answers, [](const PollAnswer &answer) {
+		return !answer.votes;
+	});
+}
 
 const auto kSubscribersOnlyVoteErrorPatterns = std::array{
 	u"POLL_SUBSCRIBERS_ONLY"_q,
@@ -528,6 +551,68 @@ void Polls::reloadResults(not_null<HistoryItem*> item) {
 		_pollReloadRequestIds.erase(itemId);
 	}).send();
 	_pollReloadRequestIds.emplace(itemId, requestId);
+}
+
+// WHY: the server sends per-answer counts only to voters, so a vote for the
+// first answer is sent and withdrawn at once; the counts from the vote stay,
+// minus our own one if the withdrawal came back without fresh counts.
+void Polls::probeResults(not_null<HistoryItem*> item) {
+	const auto itemId = item->fullId();
+	const auto media = item->media();
+	const auto poll = media ? media->poll() : nullptr;
+	if (!poll
+		|| _pollVotesRequestIds.contains(itemId)
+		|| !NeedsResultsProbe(item, poll)) {
+		return;
+	}
+	const auto now = crl::now();
+	auto &last = _pollProbeTimes[poll->id];
+	if (last && now - last < kResultsProbeInterval) {
+		return;
+	}
+	last = now;
+	const auto peer = item->history()->peer;
+	const auto msgId = item->id;
+	const auto option = poll->answers.front().option;
+	const auto finish = [=] {
+		_pollVotesRequestIds.erase(itemId);
+	};
+	const auto requestId = _api.request(MTPmessages_SendVote(
+		peer->input(),
+		MTP_int(msgId),
+		MTP_vector<MTPbytes>(1, MTP_bytes(option))
+	)).done([=](const MTPUpdates &result) {
+		_session->updates().applyUpdates(result);
+		const auto answer = poll->answerByOption(option);
+		const auto counted = answer ? answer->votes : 0;
+		const auto retract = std::make_shared<Fn<void(int)>>();
+		*retract = [=](int attempt) {
+			_pollVotesRequestIds[itemId] = _api.request(MTPmessages_SendVote(
+				peer->input(),
+				MTP_int(msgId),
+				MTP_vector<MTPbytes>()
+			)).done([=](const MTPUpdates &result) {
+				finish();
+				_session->updates().applyUpdates(result);
+				const auto answer = poll->answerByOption(option);
+				if (answer && counted > 0 && answer->votes == counted) {
+					--answer->votes;
+					++poll->version;
+					_session->data().notifyPollUpdateDelayed(poll);
+				}
+				*retract = nullptr;
+			}).fail([=] {
+				if (attempt < 3) {
+					(*retract)(attempt + 1);
+				} else {
+					finish();
+					*retract = nullptr;
+				}
+			}).send();
+		};
+		(*retract)(1);
+	}).fail(finish).send();
+	_pollVotesRequestIds.emplace(itemId, requestId);
 }
 
 void Polls::requestStats(

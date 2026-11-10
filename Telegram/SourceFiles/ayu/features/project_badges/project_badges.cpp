@@ -139,17 +139,26 @@ rpl::event_stream<> &UpdatesStream() {
 	return u"client"_q;
 }
 
+[[nodiscard]] QString DefaultProject(const QString &level) {
+	if (level == u"developer"_q || level == u"supporter"_q) {
+		return u"HeartGram"_q;
+	} else if (level == u"client"_q) {
+		return u"whyheartone VPN"_q;
+	}
+	return QString();
+}
+
 [[nodiscard]] QString DefaultText(const QString &level) {
 	if (level == u"owner"_q) {
-		return u"{name} создатель и владелец {project}"_q;
+		return u"{name} является создателем проектов whyheartone."_q;
 	} else if (level == u"developer"_q) {
-		return u"{name} разработчик {project}"_q;
+		return u"{name} является членом команды разработчиков {project}."_q;
 	} else if (level == u"official"_q) {
-		return u"{name} является официальным ресурсом {project}"_q;
+		return u"{name} является официальным ресурсом {project}."_q;
 	} else if (level == u"supporter"_q) {
-		return u"{name} поддержал {project}"_q;
+		return u"{name} поддержал(а) разработку {project} и получил(а) уникальный значок."_q;
 	}
-	return u"{name} с нами в {project}"_q;
+	return u"{name} пользуется {project}."_q;
 }
 
 [[nodiscard]] qint64 KeyFor(not_null<PeerData*> peer) {
@@ -508,13 +517,6 @@ void Refresh() {
 	});
 }
 
-[[nodiscard]] QString Fill(
-		QString text,
-		const QString &name,
-		const QString &project) {
-	return text.replace(u"{name}"_q, name).replace(u"{project}"_q, project);
-}
-
 } // namespace
 
 bool Enabled() {
@@ -679,6 +681,10 @@ void ShowDonateInfo(not_null<Window::SessionController*> controller) {
 		support.contact));
 }
 
+namespace {
+
+} // namespace
+
 void ShowAbout(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
@@ -704,9 +710,12 @@ void ShowAbout(
 			return e->second;
 		}
 		const auto j = data.projects.find(level);
-		return (j != data.projects.end()) ? j->second : data.project;
+		if (j != data.projects.end() && !j->second.isEmpty()) {
+			return j->second;
+		}
+		const auto fallback = DefaultProject(level);
+		return fallback.isEmpty() ? data.project : fallback;
 	}();
-	const auto text = Fill(template_, peer->name(), levelProject);
 	auto buttonText = QString();
 	auto buttonUrl = QString();
 	const auto ownButton = data.extraButton.find(key);
@@ -716,7 +725,10 @@ void ShowAbout(
 	if (ownButton != data.extraButton.end()) {
 		buttonText = ownButton->second.first;
 		buttonUrl = ownButton->second.second;
-	} else if (!hasCustom && !supporter) {
+	} else if (!hasCustom
+		&& !supporter
+		&& level != u"owner"_q
+		&& level != u"developer"_q) {
 		const auto j = data.buttons.find(level);
 		if (j != data.buttons.end() && !j->second.second.isEmpty()) {
 			buttonText = j->second.first;
@@ -745,7 +757,9 @@ void ShowAbout(
 		.adaptive = true,
 		.duration = 4 * crl::time(1000),
 	};
-	if (supporter) {
+	const auto toSupport = !hasCustom
+		&& (supporter || (level == u"owner"_q));
+	if (toSupport) {
 		Ayu::Ui::ShowToastWithAction(
 			std::move(config),
 			tr::lng_collectible_learn_more(tr::now),
@@ -758,7 +772,7 @@ void ShowAbout(
 				: buttonText,
 			[=] { UrlClickHandler::Open(buttonUrl); });
 	} else {
-		Ui::Toast::Show(std::move(config));
+		controller->showToast(std::move(config));
 	}
 }
 

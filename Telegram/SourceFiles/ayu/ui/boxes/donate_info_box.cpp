@@ -341,6 +341,13 @@ void FillProjectDonateInfoBox(
 	if (!username.startsWith('@')) {
 		username.prepend('@');
 	}
+	auto receiptLink = Ui::Text::Link(
+		username,
+		session->createInternalLinkFull(username.mid(1)));
+	receiptLink.entities.push_back(EntityInText(
+		EntityType::Bold,
+		0,
+		int(receiptLink.text.size())));
 	content->add(InfoRow(
 		content,
 		session,
@@ -349,9 +356,7 @@ void FillProjectDonateInfoBox(
 			.append(Extera::Text(
 				u"Пришлите скриншот перевода в личные сообщения "_q,
 				u"Send a screenshot of the transfer in a private message to "_q))
-			.append(Ui::Text::Link(
-				username,
-				session->createInternalLinkFull(username.mid(1))))
+			.append(std::move(receiptLink))
 			.append(Extera::Text(
 				u". Должны быть видны сумма, дата и время."_q,
 				u". The amount, date and time must be visible."_q)),
@@ -364,8 +369,8 @@ void FillProjectDonateInfoBox(
 		session,
 		Extera::Text(u"Получить значок"_q, u"Get the badge"_q),
 		TextWithEntities{ Extera::Text(
-			u"Когда платёж проверен, значок появится в вашем профиле и у имени в чатах, его увидят все."_q,
-			u"Once the payment is checked, the badge shows in your profile and next to your name in chats for everyone."_q) },
+			u"Когда платёж проверен, значок появится в вашем профиле и у имени в чатах. Его увидят другие пользователи HeartGram."_q,
+			u"Once the payment is checked, the badge shows in your profile and next to your name in chats. Other HeartGram users will see it."_q) },
 		&st::menuIconStarRefShare,
 		Core::TextContext({ .session = session })));
 

@@ -85,6 +85,12 @@ void FillUnofficialInfo(not_null<Ui::VerticalLayout*> container) {
 	Ui::AddSkip(container);
 	AddLinkButton(
 		container,
+		rpl::single(Text(u"Канал HeartGram"_q, u"HeartGram channel"_q)),
+		u"@heartgramclient"_q,
+		u"https://t.me/heartgramclient"_q,
+		&st::exteraIconChannel);
+	AddLinkButton(
+		container,
 		rpl::single(Text(u"Разработчик"_q, u"Developer"_q)),
 		u"@whyheartone"_q,
 		u"https://t.me/whyheartone"_q,

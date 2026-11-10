@@ -16,6 +16,7 @@ void BuildExteraCategories(Builder::SectionBuilder &builder);
 // (HeartGram has one General / Appearance / Chats / Other page, not two).
 void BuildExteraGeneral(Builder::SectionBuilder &builder);
 void BuildExteraAppearance(Builder::SectionBuilder &builder);
+void AddExteraMaterialGroup(Builder::SectionBuilder &builder);
 void BuildExteraChats(Builder::SectionBuilder &builder);
 void BuildExteraOther(Builder::SectionBuilder &builder);
 

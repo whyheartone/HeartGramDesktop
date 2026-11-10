@@ -105,6 +105,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // AyuGram includes
 #include "ayu/ui/ayu_userpic.h"
 #include "ayu/utils/telegram_helpers.h"
+#include "extera/extera_config.h"
 #include "styles/style_ayu_icons.h"
 
 
@@ -1082,6 +1083,21 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		context.st = (forum || monoforum) ? &st::forumDialogRow : _st.get();
+		context.tiles = Extera::Bool(u"md3_chat_list"_q)
+			&& (_state == WidgetState::Default)
+			&& !communityModeShown();
+		if (context.tiles) {
+			const auto &all = _shownList->all();
+			const auto pinned = row->entry()->isPinnedDialog(_filterId);
+			const auto sameGroup = [&](int index) {
+				return (index >= 0)
+					&& (index < int(all.size()))
+					&& ((all.cbegin() + index)->get()->entry()->isPinnedDialog(
+						_filterId) == pinned);
+			};
+			context.tileFirst = !sameGroup(row->index() - 1);
+			context.tileLast = !sameGroup(row->index() + 1);
+		}
 
 		const auto videoUserpic = validateVideoUserpic(row);
 		const auto cacheRatio = style::DevicePixelRatio();
@@ -1100,6 +1116,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			&& !context.rightButton
 			&& !expanding
 			&& !childListShown.shown
+			&& !context.tiles
 			&& (fullWidth > 0);
 		if (cacheAllowed && _rowsScrollCache.hasFresh(cacheKey, cacheSize)) {
 			context.topicsExpanded = 0.;
@@ -1591,6 +1608,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		const auto showUnreadInSearchResults = uniqueSearchResults();
+		const auto searchTiles = Extera::Bool(u"md3_chat_list"_q);
 		if (_idSearchResults.empty() && _previewResults.empty() && _searchResults.empty()) {
 			if (_loadingAnimation) {
 				const auto text = tr::lng_contacts_loading(tr::now);
@@ -1660,6 +1678,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.search = true,
 						.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
 						.displayUnreadInfo = showUnreadInSearchResults,
+						.tiles = searchTiles,
+						.tileFirst = !from,
+						.tileLast = (from + 1 == _previewResults.size()),
 					});
 					p.translate(0, _st->height);
 				}
@@ -1744,6 +1765,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.search = true,
 						.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
 						.displayUnreadInfo = showUnreadInSearchResults,
+						.tiles = searchTiles,
+						.tileFirst = !from,
+						.tileLast = (from + 1 == _searchResults.size()),
 					});
 					p.translate(0, _st->height);
 				}
@@ -3603,6 +3627,11 @@ void InnerWidget::updateDialogRow(
 		if (!dialog || !animatedPreviewCached(dialog)) {
 			invalidateCachedRow(RowsCacheKey(row.key.entry()));
 		}
+	}
+	// WHY: a partial repaint draws the anti-aliased tile edge and status dots
+	// over what is already there, which cuts them off or shifts their colors.
+	if (Extera::Bool(u"md3_chat_list"_q)) {
+		updateRect = QRect();
 	}
 	const auto updateRow = [&](int rowTop, int rowHeight) {
 		if (!updateRect.isEmpty()) {

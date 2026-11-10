@@ -89,6 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 
 // AyuGram includes
+#include "settings/settings_tiles.h"
 #include "ayu/ayu_settings.h"
 #include "ayu/utils/telegram_helpers.h"
 #include "ayu/features/project_badges/project_badges.h"
@@ -97,6 +98,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang_auto.h"
 #include "ayu/ui/settings/settings_main.h"
 #include "styles/style_info.h"
+
+// AyuGram includes
+#include "ayu/ayu_ui_settings.h"
+#include "ui/effects/animation_value.h"
+
 
 
 namespace Window {
@@ -384,6 +390,8 @@ MainMenu::MainMenu(
 	setupMenu();
 
 	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
+	shadow->setProperty("hgDrawerLine", true);
+	_shadow->entity()->setProperty("hgDrawerLine", true);
 	widthValue(
 	) | rpl::on_next([=](int width) {
 		const auto line = st::lineWidth;
@@ -604,7 +612,8 @@ void MainMenu::setupArchive() {
 		{ &st::menuIconArchiveOpen });
 	inner->add(
 		object_ptr<Ui::PlainShadow>(inner),
-		{ 0, st::mainMenuSkip, 0, st::mainMenuSkip });
+		{ 0, st::mainMenuSkip, 0, st::mainMenuSkip }
+	)->setProperty("hgDrawerLine", true);
 	button->setAcceptBoth(true);
 	button->clicks(
 	) | rpl::on_next([=](Qt::MouseButton which) {
@@ -680,6 +689,7 @@ void MainMenu::toggleAccounts() {
 
 void MainMenu::setupAccounts() {
 	const auto inner = _accounts->entity();
+	Settings::AttachTiles(inner);
 
 	inner->add(object_ptr<Ui::FixedHeightWidget>(inner, st::mainMenuSkip));
 	auto events = Settings::SetupAccounts(inner, _controller);
@@ -732,6 +742,11 @@ void MainMenu::showFinished() {
 void MainMenu::setupMenu() {
 	using namespace Settings;
 
+	Ui::SettingsButton::AddCompactStyle(&st::mainMenuButton);
+	Ui::SettingsButton::AddCompactStyle(&st::mainMenuAddAccountButton);
+
+	AttachTiles(_menu);
+
 	const auto &settings = AyuSettings::getInstance();
 
 	const auto controller = _controller;
@@ -771,7 +786,8 @@ void MainMenu::setupMenu() {
 		if (settings.showMyProfileInDrawer() || settings.showBotsInDrawer())
 		_menu->add(
 			object_ptr<Ui::PlainShadow>(_menu),
-			{ 0, st::mainMenuSkip, 0, st::mainMenuSkip });
+			{ 0, st::mainMenuSkip, 0, st::mainMenuSkip }
+		)->setProperty("hgDrawerLine", true);
 
 		if (settings.showNewGroupInDrawer())
 		AddMyChannelsBox(addAction(
@@ -1127,6 +1143,24 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 	const auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight);
 
 	p.fillRect(clip, st::mainMenuBg);
+	if (AyuUiSettings::isMaterialSettings() && cover.intersects(clip)) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto side = style::ConvertScale(8);
+		const auto tile = QRectF(cover).adjusted(
+			side,
+			style::ConvertScale(6),
+			-side,
+			-style::ConvertScale(3));
+		const auto radius = std::min(
+			qreal(style::ConvertScale(20)),
+			tile.height() * 0.18);
+		p.setPen(Qt::NoPen);
+		p.setBrush(anim::color(
+			st::mainMenuBg->c,
+			st::windowFg->c,
+			0.045));
+		p.drawRoundedRect(tile, radius, radius);
+	}
 	if (cover.intersects(clip)) {
 		drawName(p);
 	}

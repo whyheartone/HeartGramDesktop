@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // AyuGram includes
 #include "ayu/features/filters/filters_controller.h"
 #include "styles/style_ayu_icons.h"
+#include "ayu/ayu_ui_settings.h"
 
 
 namespace Dialogs::Ui {
@@ -532,6 +533,94 @@ void PaintStreamerRow(
 		bar / 2.);
 }
 
+constexpr auto kTileSide = 6;
+constexpr auto kTileContentShift = 11;
+constexpr auto kTileOuterRadius = 20;
+constexpr auto kTileInnerRadius = 6;
+constexpr auto kTileGap = 1;
+constexpr auto kTileGroupGap = 3;
+
+[[nodiscard]] QColor TileColor(const PaintContext &context) {
+	return anim::color(context.currentBg->color(), st::windowFg->c, 0.03);
+}
+
+[[nodiscard]] QPainterPath TilePath(
+		QRect geometry,
+		const PaintContext &context,
+		int side) {
+	const auto top = style::ConvertScale(
+		context.tileFirst ? kTileGroupGap : kTileGap);
+	const auto bottom = style::ConvertScale(
+		context.tileLast ? kTileGroupGap : kTileGap);
+	const auto big = std::min(
+		qreal(style::ConvertScale(kTileOuterRadius)),
+		geometry.height() * 0.33);
+	const auto small = qreal(style::ConvertScale(kTileInnerRadius));
+	const auto upper = context.tileFirst ? big : small;
+	const auto lower = context.tileLast ? big : small;
+	const auto r = QRectF(
+		geometry.left() + side,
+		geometry.top() + top,
+		geometry.width() - 2 * side,
+		geometry.height() - top - bottom);
+	auto path = QPainterPath();
+	path.moveTo(r.left() + upper, r.top());
+	path.lineTo(r.right() - upper, r.top());
+	path.arcTo(QRectF(r.right() - 2 * upper, r.top(), 2 * upper, 2 * upper), 90, -90);
+	path.lineTo(r.right(), r.bottom() - lower);
+	path.arcTo(QRectF(r.right() - 2 * lower, r.bottom() - 2 * lower, 2 * lower, 2 * lower), 0, -90);
+	path.lineTo(r.left() + lower, r.bottom());
+	path.arcTo(QRectF(r.left(), r.bottom() - 2 * lower, 2 * lower, 2 * lower), 270, -90);
+	path.lineTo(r.left(), r.top() + upper);
+	path.arcTo(QRectF(r.left(), r.top(), 2 * upper, 2 * upper), 180, -90);
+	path.closeSubpath();
+	return path;
+}
+
+class TileScope final {
+public:
+	TileScope(Painter &p, const PaintContext &outer, int height)
+	: context(outer)
+	, _p(p) {
+		if (!outer.tiles || outer.narrow) {
+			return;
+		}
+		_shift = style::ConvertScale(kTileContentShift);
+		const auto geometry = QRect(0, 0, outer.width, height);
+		const auto bg = outer.active
+			? st::dialogsBgActive->c
+			: outer.selected
+			? st::dialogsBgOver->c
+			: TileColor(outer);
+		p.fillRect(geometry, outer.currentBg);
+		_path = TilePath(geometry, outer, style::ConvertScale(kTileSide));
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.fillPath(_path, bg);
+		}
+		p.translate(_shift, 0);
+		_path.translate(-_shift, 0);
+		context.width -= 2 * _shift;
+		context.currentBg = QBrush(TileColor(outer));
+		context.tilePath = &_path;
+		_applied = true;
+	}
+	~TileScope() {
+		if (_applied) {
+			_p.translate(-_shift, 0);
+		}
+	}
+
+	PaintContext context;
+
+private:
+	Painter &_p;
+	QPainterPath _path;
+	int _shift = 0;
+	bool _applied = false;
+
+};
+
 template <typename PaintItemCallback>
 void PaintRow(
 		Painter &p,
@@ -585,12 +674,21 @@ void PaintRow(
 	if (swipeTranslation) {
 		p.translate(swipeMirrored ? swipeTranslation : -swipeTranslation, 0);
 	}
-	p.fillRect(geometry, bg);
+	if (!context.tilePath) {
+		p.fillRect(geometry, bg);
+	}
 	if (!(flags & Flag::TopicJumpRipple)) {
 		auto ripple = context.active
 			? st::dialogsRippleBgActive
 			: st::dialogsRippleBg;
+		if (context.tilePath) {
+			p.save();
+			p.setClipPath(*context.tilePath, Qt::IntersectClip);
+		}
 		row->paintRipple(p, 0, 0, context.width, &ripple->c);
+		if (context.tilePath) {
+			p.restore();
+		}
 	}
 
 	if (flags & Flag::SavedMessages) {
@@ -1243,7 +1341,9 @@ void RowPainter::Paint(
 		Painter &p,
 		not_null<const Row*> row,
 		VideoUserpic *videoUserpic,
-		const PaintContext &context) {
+		const PaintContext &outerContext) {
+	const auto tile = TileScope(p, outerContext, row->height());
+	const auto &context = tile.context;
 	const auto entry = row->entry();
 	const auto history = row->history();
 	const auto thread = row->thread();
@@ -1405,7 +1505,9 @@ void RowPainter::Paint(
 void RowPainter::Paint(
 		Painter &p,
 		not_null<const FakeRow*> row,
-		const PaintContext &context) {
+		const PaintContext &outerContext) {
+	const auto tile = TileScope(p, outerContext, outerContext.st->height);
+	const auto &context = tile.context;
 	const auto item = row->item();
 	const auto itemIsFiltered = FiltersController::filtered(item);
 	const auto topic = context.forum ? row->topic() : nullptr;

@@ -73,6 +73,17 @@ constexpr auto kCacheLimit = 40;
 	return result;
 }
 
+[[nodiscard]] LyricsLoader::Lines ParsePlain(const QString &text) {
+	auto result = LyricsLoader::Lines();
+	for (const auto &raw : text.split(u'\n')) {
+		const auto line = raw.trimmed();
+		if (!line.isEmpty()) {
+			result.push_back({ kPlainLine, line });
+		}
+	}
+	return result;
+}
+
 } // namespace
 
 WavySlider::WavySlider(QWidget *parent, const style::FilledSlider &st)
@@ -296,32 +307,43 @@ void LyricsLoader::request(const LyricsQuery &query) {
 			store(ParseSynced(synced));
 			return;
 		}
+		const auto exactPlain = object.value(u"plainLyrics"_q).toString();
 		if (generation != _generation) {
 			return;
 		}
 		fetch(search, [=](const QByteArray &data) {
 			const auto list = QJsonDocument::fromJson(data).array();
-			auto best = QString();
-			auto bestDelta = 1 << 30;
-			for (const auto &entry : list) {
-				const auto item = entry.toObject();
-				const auto text = item.value(u"syncedLyrics"_q).toString();
-				if (text.isEmpty()) {
-					continue;
+			const auto pick = [&](const QString &key) {
+				auto best = QString();
+				auto bestDelta = 1 << 30;
+				for (const auto &entry : list) {
+					const auto item = entry.toObject();
+					const auto text = item.value(key).toString();
+					if (text.isEmpty()) {
+						continue;
+					}
+					const auto delta = (duration > 0)
+						? std::abs(int(item.value(u"duration"_q).toDouble())
+							- duration)
+						: 0;
+					if (delta < bestDelta) {
+						bestDelta = delta;
+						best = text;
+					}
 				}
-				const auto delta = (duration > 0)
-					? std::abs(int(item.value(u"duration"_q).toDouble())
-						- duration)
-					: 0;
-				if (delta < bestDelta) {
-					bestDelta = delta;
-					best = text;
-				}
+				const auto fits = duration <= 0 || bestDelta <= 6;
+				return fits ? best : QString();
+			};
+			if (const auto best = pick(u"syncedLyrics"_q); !best.isEmpty()) {
+				store(ParseSynced(best));
+				return;
 			}
-			const auto fits = best.isEmpty()
-				|| duration <= 0
-				|| bestDelta <= 6;
-			store((best.isEmpty() || !fits) ? Lines() : ParseSynced(best));
+			// WHY: some tracks only have plain text on lrclib, shown as is.
+			auto plain = pick(u"plainLyrics"_q);
+			if (plain.isEmpty()) {
+				plain = exactPlain;
+			}
+			store(plain.isEmpty() ? Lines() : ParsePlain(plain));
 		});
 	});
 }

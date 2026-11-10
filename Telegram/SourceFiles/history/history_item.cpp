@@ -2678,6 +2678,13 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	} else {
 		_flags &= ~MessageFlag::InvertMedia;
 	}
+#ifdef HEARTGRAM_LITE
+	if (data.is_noforwards()) {
+		_flags |= MessageFlag::AyuNoForwards;
+	} else {
+		_flags &= ~MessageFlag::AyuNoForwards;
+	}
+#endif // HEARTGRAM_LITE
 
 	updateSentContent(data);
 	updateReplyMarkup(HistoryMessageMarkupData(data.vreply_markup()));
@@ -3305,12 +3312,20 @@ bool HistoryItem::canStopPoll() const {
 }
 
 bool HistoryItem::forbidsForward() const {
+#ifdef HEARTGRAM_LITE
+	return (_flags & MessageFlag::AyuNoForwards);
+#else // HEARTGRAM_LITE
 	return false;
+#endif // HEARTGRAM_LITE
 }
 
 bool HistoryItem::forbidsSaving() const {
 	if (forbidsForward()) {
 		return true;
+#ifdef HEARTGRAM_LITE
+	} else if (_media && _media->ttlSeconds()) {
+		return true;
+#endif // HEARTGRAM_LITE
 	}/* else if (const auto invoice = _media ? _media->invoice() : nullptr) {
 		return HasExtendedMedia(*invoice);
 	}*/

@@ -1,11 +1,14 @@
 #include "extera/extera_config.h"
 
 #include "ayu/ayu_settings.h"
+#include "ayu/ayu_ui_settings.h"
 
 #include <QtCore/QHash>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QFile>
 #include <QtCore/QSaveFile>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QWidget>
 
 namespace Extera {
 namespace {
@@ -17,8 +20,6 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"translate_button"_q, true },
 		{ u"translate_chats"_q, false },
 		{ u"translate_provider"_q, 0 },
-		{ u"translate_target"_q, QString() },
-		{ u"translate_skip"_q, QString() },
 		{ u"disable_number_rounding"_q, false },
 		{ u"time_with_seconds"_q, false },
 		{ u"filter_zalgo"_q, true },
@@ -28,7 +29,6 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"approx_last_seen"_q, true },
 		{ u"hide_phone"_q, false },
 		{ u"show_id_dc"_q, 0 },
-		{ u"hide_archive"_q, false },
 
 		{ u"avatar_corners"_q, 28 },
 		{ u"single_corner_radius"_q, true },
@@ -71,7 +71,6 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"feed_unread_counter"_q, true },
 		{ u"feed_include_archived"_q, true },
 		{ u"feed_hidden"_q, QString() },
-		{ u"system_emoji"_q, false },
 
 		{ u"sticker_size"_q, 14 },
 		{ u"sticker_time"_q, 0 },
@@ -92,13 +91,10 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"online_indicator"_q, false },
 		{ u"forward_count"_q, false },
 		{ u"hide_share_button"_q, false },
-		{ u"menu_copy_photo"_q, true },
-		{ u"menu_save"_q, true },
 		{ u"menu_repeat"_q, false },
 		{ u"menu_quick_row"_q, false },
 		{ u"menu_plugins"_q, 1 },
 		{ u"menu_quick_items"_q, u"reply,delete,copy,edit"_q },
-		{ u"menu_history"_q, true },
 		{ u"menu_details"_q, true },
 		{ u"always_send_hd"_q, false },
 		{ u"video_seek_step"_q, 5 },
@@ -109,6 +105,10 @@ constexpr auto kSaveDelay = crl::time(1000);
 
 		{ u"md3_switches"_q, true },
 		{ u"md3_sliders"_q, true },
+		{ u"md3_chat_list"_q, false },
+		{ u"md3_menus"_q, false },
+		{ u"md3_settings"_q, false },
+		{ u"md3_dialogs"_q, false },
 		{ u"material_design"_q, true },
 		{ u"custom_chat_themes"_q, true },
 		{ u"app_icon"_q, QString() },
@@ -125,9 +125,7 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"ai_chat_temperature"_q, 10 },
 		{ u"plugins_enabled"_q, true },
 		{ u"plugins_pinned"_q, QString() },
-		{ u"plugins_developer_mode"_q, false },
 		{ u"plugins_compact_view"_q, false },
-		{ u"plugins_unknown_sources"_q, false },
 		{ u"project_badges"_q, true },
 		{ u"topbar_avatar"_q, true },
 		{ u"player_md3"_q, true },
@@ -137,10 +135,8 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"player_live_gradient"_q, false },
 		{ u"player_gpu"_q, true },
 		{ u"player_font"_q, QString() },
-		{ u"chatlist_emoji_always"_q, true },
 		{ u"separate_volumes"_q, true },
 		{ u"voice_volume"_q, 90 },
-		{ u"player_grain"_q, 1 },
 		{ u"player_change_pitch"_q, false },
 		{ u"player_lyrics"_q, true },
 		{ u"player_cover_color"_q, true },
@@ -158,15 +154,20 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"am_intensity"_q, 1 },
 		{ u"am_style"_q, 4 },
 		{ u"am_speed"_q, 1 },
-		{ u"am_different_outgoing"_q, false },
-		{ u"am_mirror_outgoing"_q, true },
-		{ u"am_out_style"_q, 4 },
-		{ u"am_out_speed"_q, 1 },
 		{ u"am_random_chat"_q, false },
 		{ u"am_random_mode"_q, 1 },
 		{ u"plugins_safe_mode"_q, false },
 	};
 	return result;
+}
+
+void RepaintAll() {
+	for (const auto top : QApplication::topLevelWidgets()) {
+		top->update();
+		for (const auto child : top->findChildren<QWidget*>()) {
+			child->update();
+		}
+	}
 }
 
 } // namespace
@@ -185,6 +186,9 @@ void Config::setWorkingDir(const QString &path) {
 	_loaded = false;
 	_values = QJsonObject();
 	load();
+	AyuUiSettings::setMaterialMenus(boolValue(u"md3_menus"_q));
+	AyuUiSettings::setMaterialDialogs(boolValue(u"md3_dialogs"_q));
+	AyuUiSettings::setMaterialSettings(boolValue(u"md3_settings"_q));
 }
 
 QString Config::path() const {
@@ -231,6 +235,16 @@ void Config::set(const QString &key, QJsonValue value) {
 		_values.insert(key, value);
 	}
 	_saveTimer.callOnce(kSaveDelay);
+	if (key == u"md3_menus"_q) {
+		AyuUiSettings::setMaterialMenus(boolValue(key));
+	} else if (key == u"md3_dialogs"_q) {
+		AyuUiSettings::setMaterialDialogs(boolValue(key));
+	} else if (key == u"md3_settings"_q) {
+		AyuUiSettings::setMaterialSettings(boolValue(key));
+	}
+	if (key.startsWith(u"md3_"_q)) {
+		RepaintAll();
+	}
 	_changes.fire_copy(key);
 }
 

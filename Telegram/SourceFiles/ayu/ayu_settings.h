@@ -86,6 +86,17 @@ class GhostModeAccountSettings {
 public:
 	GhostModeAccountSettings();
 
+#ifdef HEARTGRAM_LITE
+	// HeartGram Lite has no ghost mode: reads, online and typing always go out,
+	// whatever ayu_settings.json says.
+	[[nodiscard]] bool sendReadMessages() const { return true; }
+	[[nodiscard]] bool sendReadStories() const { return true; }
+	[[nodiscard]] bool sendOnlinePackets() const { return true; }
+	[[nodiscard]] bool sendUploadProgress() const { return true; }
+	[[nodiscard]] bool sendOfflinePacketAfterOnline() const { return false; }
+	[[nodiscard]] bool markReadAfterAction() const { return false; }
+	[[nodiscard]] bool useScheduledMessages() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool sendReadMessages() const { return _sendReadMessages.current(); }
 	[[nodiscard]] bool sendReadStories() const { return _sendReadStories.current(); }
 	[[nodiscard]] bool sendOnlinePackets() const { return _sendOnlinePackets.current(); }
@@ -93,10 +104,16 @@ public:
 	[[nodiscard]] bool sendOfflinePacketAfterOnline() const { return _sendOfflinePacketAfterOnline.current(); }
 	[[nodiscard]] bool markReadAfterAction() const { return _markReadAfterAction.current(); }
 	[[nodiscard]] bool useScheduledMessages() const { return _useScheduledMessages.current(); }
+#endif // HEARTGRAM_LITE
 	[[nodiscard]] SendWithoutSoundOption sendWithoutSound() const { return _sendWithoutSound.current(); }
 	[[nodiscard]] bool shouldSendWithoutSound() const;
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool suggestGhostModeBeforeViewingStory() const { return false; }
+	[[nodiscard]] bool isGhostModeActive() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool suggestGhostModeBeforeViewingStory() const { return _suggestGhostModeBeforeViewingStory.current(); }
 	[[nodiscard]] bool isGhostModeActive() const { return _ghostModeActive.current(); }
+#endif // HEARTGRAM_LITE
 	[[nodiscard]] bool isUseScheduledMessages() const { return isGhostModeActive() && useScheduledMessages(); }
 
 	[[nodiscard]] bool sendReadMessagesLocked() const { return _sendReadMessagesLocked.current(); }
@@ -262,18 +279,50 @@ public:
 
 	void addShadowBan(int64 id);
 	void removeShadowBan(int64 id);
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool isShadowBanned(const int64 id) const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool isShadowBanned(const int64 id) const { return _shadowBanIds.contains(id); }
+#endif // HEARTGRAM_LITE
 	[[nodiscard]] const std::unordered_set<int64> &shadowBanIds() const { return _shadowBanIds; }
 
 	void validate();
 
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool saveDeletedMessages() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool saveDeletedMessages() const { return _saveDeletedMessages.current(); }
+#endif // HEARTGRAM_LITE
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool saveMessagesHistory() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool saveMessagesHistory() const { return _saveMessagesHistory.current(); }
+#endif // HEARTGRAM_LITE
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool saveForBots() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool saveForBots() const { return _saveForBots.current(); }
+#endif // HEARTGRAM_LITE
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool filtersEnabled() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool filtersEnabled() const { return _filtersEnabled.current(); }
+#endif // HEARTGRAM_LITE
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool filtersEnabledInChats() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool filtersEnabledInChats() const { return _filtersEnabledInChats.current(); }
+#endif // HEARTGRAM_LITE
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool hideFromBlocked() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool hideFromBlocked() const { return _hideFromBlocked.current(); }
+#endif // HEARTGRAM_LITE
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool semiTransparentDeletedMessages() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool semiTransparentDeletedMessages() const { return _semiTransparentDeletedMessages.current(); }
+#endif // HEARTGRAM_LITE
 	[[nodiscard]] bool disableAds() const { return _disableAds.current(); }
 	[[nodiscard]] bool disableStories() const { return _disableStories.current(); }
 	[[nodiscard]] bool disableCustomBackgrounds() const { return _disableCustomBackgrounds.current(); }
@@ -290,7 +339,11 @@ public:
 	[[nodiscard]] bool materialSwitches() const { return _materialSwitches.current(); }
 	[[nodiscard]] bool removeMessageTail() const { return _removeMessageTail.current(); }
 	[[nodiscard]] bool disableNotificationsDelay() const { return _disableNotificationsDelay.current(); }
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool localPremium() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool localPremium() const { return _localPremium.current(); }
+#endif // HEARTGRAM_LITE
 	[[nodiscard]] bool showChannelReactions() const { return _showChannelReactions.current(); }
 	[[nodiscard]] bool showGroupReactions() const { return _showGroupReactions.current(); }
 	[[nodiscard]] bool showPrivateChatReactions() const { return _showPrivateChatReactions.current(); }
@@ -324,12 +377,28 @@ public:
 	[[nodiscard]] bool showContactsInDrawer() const { return _showContactsInDrawer.current(); }
 	[[nodiscard]] bool showCallsInDrawer() const { return _showCallsInDrawer.current(); }
 	[[nodiscard]] bool showSavedMessagesInDrawer() const { return _showSavedMessagesInDrawer.current(); }
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool showLReadToggleInDrawer() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool showLReadToggleInDrawer() const { return _showLReadToggleInDrawer.current(); }
+#endif // HEARTGRAM_LITE
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool showSReadToggleInDrawer() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool showSReadToggleInDrawer() const { return _showSReadToggleInDrawer.current(); }
+#endif // HEARTGRAM_LITE
 	[[nodiscard]] bool showNightModeToggleInDrawer() const { return _showNightModeToggleInDrawer.current(); }
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool showGhostToggleInDrawer() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool showGhostToggleInDrawer() const { return _showGhostToggleInDrawer.current(); }
+#endif // HEARTGRAM_LITE
 	[[nodiscard]] bool showStreamerToggleInDrawer() const { return _showStreamerToggleInDrawer.current(); }
+#ifdef HEARTGRAM_LITE
+	[[nodiscard]] bool showGhostToggleInTray() const { return false; }
+#else // HEARTGRAM_LITE
 	[[nodiscard]] bool showGhostToggleInTray() const { return _showGhostToggleInTray.current(); }
+#endif // HEARTGRAM_LITE
 	[[nodiscard]] bool showStreamerToggleInTray() const { return _showStreamerToggleInTray.current(); }
 	[[nodiscard]] const QString &monoFont() const { return _monoFont.current(); }
 	[[nodiscard]] bool hideNotificationCounters() const { return _hideNotificationCounters.current(); }

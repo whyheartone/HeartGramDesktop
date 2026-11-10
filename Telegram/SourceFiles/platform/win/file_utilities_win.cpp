@@ -395,6 +395,8 @@ bool Get(
 	QFileDialog dialog(parent, caption, helperPath, filter);
 
 	dialog.setModal(true);
+	dialog.setWindowFlag(Qt::WindowContextHelpButtonHint, false);
+	dialog.setWindowOpacity(0.);
 	if (type == Type::ReadFile || type == Type::ReadFiles) {
 		dialog.setFileMode((type == Type::ReadFiles) ? QFileDialog::ExistingFiles : QFileDialog::ExistingFile);
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);

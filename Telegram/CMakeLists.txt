@@ -257,6 +257,24 @@ set(ayugram_files
         info/profile/info_profile_music_button.h
 )
 
+if (HEARTGRAM_LITE)
+    # The headers stay for the callers; heartgram_lite_stubs.cpp answers them.
+    list(REMOVE_ITEM ayugram_files
+        ayu/ayu_worker.cpp
+        ayu/data/messages_storage.cpp
+        ayu/features/filters/filters_controller.cpp
+        ayu/features/filters/filters_cache_controller.cpp
+        ayu/features/filters/filters_utils.cpp
+        ayu/features/forward/ayu_forward.cpp
+        ayu/features/forward/ayu_forward_rich.cpp
+        ayu/features/forward/ayu_sync.cpp
+        ayu/features/forward/ayu_sync.h
+    )
+    list(APPEND ayugram_files
+        ayu/features/heartgram_lite_stubs.cpp
+    )
+endif()
+
 if (NOT DESKTOP_APP_DISABLE_SWIFT6)
     telegram_add_apple_swift_runtime(Telegram)
 endif()
@@ -2020,6 +2038,8 @@ PRIVATE
     extera/extera_update.h
     extera/extera_streamer.h
     extera/extera_feed.h
+    extera/extera_media_origin.cpp
+    extera/extera_media_origin.h
     extera/extera_menu.cpp
     extera/extera_menu.h
     extera/extera_plugins.cpp
@@ -2073,6 +2093,8 @@ PRIVATE
     settings/settings_faq_suggestions.cpp
     settings/settings_faq_suggestions.h
     settings/settings_builder.cpp
+    settings/settings_tiles.cpp
+    settings/settings_tiles.h
     settings/settings_builder.h
     settings/sections/settings_notifications.cpp
     settings/sections/settings_notifications.h

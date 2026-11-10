@@ -129,6 +129,7 @@ SplitToggle SetupSplitToggle(
 		container.get(),
 		nullptr,
 		st);
+	toggle->setTransparentBg();
 	const auto checkView = button->lifetime().make_state<Ui::ToggleView>(
 		st.toggle,
 		checked,

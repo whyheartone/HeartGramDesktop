@@ -16,6 +16,7 @@ DANGER, WARN, INFO = "danger", "warn", "info"
 # id: (category, level, ru name, ru text, en name, en text)
 CATALOG = {
     "dynamic_code": ("code", DANGER, "Динамический код", "Выполняет код, которого нет в файле плагина", "Dynamic code", "Runs code that isn't in the plugin file"),
+    "embedded_dex": ("code", WARN, "Встроенный код", "Использует скомпилированный код, который лежит внутри самого файла плагина", "Built-in code", "Uses compiled code stored inside the plugin file itself"),
     "embedded_code": ("code", WARN, "Упакованный код", "Содержит упакованный код", "Embedded code", "Contains packed code"),
     "loads_code": ("code", DANGER, "Скомпилированный код", "Загружает дополнительный скомпилированный код", "Compiled code", "Loads extra compiled code"),
     "reflection_dynamic": ("code", WARN, "Динамические вызовы", "Выбирает, что вызвать, прямо во время работы", "Dynamic calls", "Chooses what to call while running"),
@@ -215,7 +216,10 @@ class _Scan(ast.NodeVisitor):
             self.add("dynamic_code", line)
         elif last in ("__import__", "import_module") or name in ("importlib.import_module",):
             self.add("reflection_dynamic", line)
-        elif last in ("getattr", "setattr") and len(node.args) >= 2 and not isinstance(node.args[1], ast.Constant):
+        elif (isinstance(node.func, ast.Call)
+                and _dotted(node.func.func) in ("getattr", "builtins.getattr")
+                and len(node.func.args) >= 2
+                and not isinstance(node.func.args[1], ast.Constant)):
             self.add("reflection_dynamic", line)
         if name in PROCESS_NAMES or name.startswith("subprocess.") or last in ("Popen", "check_output", "check_call") and "subprocess" in name:
             self.add("processes", line)
@@ -259,7 +263,7 @@ class _Scan(ast.NodeVisitor):
             self.add("forward_messages", line)
         if last in ("get_file_loader", "loadFile", "load_file", "download_file"):
             self.add("telegram_files", line)
-        if last in ("open", "remove", "unlink", "rmtree", "copyfile", "move", "rename", "makedirs", "write_file", "read_file", "delete_file") and not name.startswith("self."):
+        if last in ("open", "remove", "unlink", "rmtree", "copyfile", "move", "rename", "makedirs", "write_file", "read_file", "delete_file") and not name.startswith("self.") and not (last == "open" and argtext.startswith("__file__")):
             self.add("files", line)
         if last in ("exit", "_exit", "killProcess", "restart", "kill", "quit") and (
                 name in ("sys.exit", "os._exit", "exit", "quit") or "Process" in name or "System" in name or "restart" in name.lower()):
@@ -379,6 +383,9 @@ def analyze(path, lang="ru"):
     packed = [i for i, l in enumerate(lines, 1) if re.fullmatch(r"#\s*[A-Za-z0-9+/=]{60,}", l.strip())]
     if len(packed) >= 20:
         scan.add("embedded_code", packed[0])
+    if ("loads_code" in found and "embedded_code" in found
+            and "remote_code" not in found and "dynamic_code" not in found):
+        found["embedded_dex"] = sorted(found.pop("loads_code") + found.pop("embedded_code"))
     index = 0 if lang == "ru" else 1
     result = []
     for fid, entries in found.items():

@@ -18,12 +18,18 @@ function(generate_scheme target_name script scheme_files)
         ${gen_dst}/scheme-dump_to_text.h
     )
 
+    set(gen_env)
+    if (HEARTGRAM_LITE)
+        set(gen_env ${CMAKE_COMMAND} -E env HEARTGRAM_LITE=1)
+    endif()
+
     add_custom_command(
     OUTPUT
         ${gen_timestamp}
     BYPRODUCTS
         ${gen_files}
     COMMAND
+        ${gen_env}
         ${Python3_EXECUTABLE}
         ${script}
         -o${gen_dst}/scheme

@@ -423,6 +423,7 @@ not_null<Ui::RpWidget*> AddInnerToggle(
 		container.get(),
 		nullptr,
 		st);
+	toggleButton->setTransparentBg();
 
 	struct State final {
 		State(const style::Toggle &st, Fn<void()> c)

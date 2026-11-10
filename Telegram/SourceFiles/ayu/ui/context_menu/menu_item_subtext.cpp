@@ -113,10 +113,19 @@ ActionWithSubText::ActionWithSubText(
 
 void ActionWithSubText::paint(Painter &p) {
 	const auto selected = isSelected();
-	if (selected && _st.itemBgOver->c.alpha() < 255) {
-		p.fillRect(0, 0, width(), _height, _st.itemBg);
+	if (!Ui::Menu::PaintItemTile(
+			p,
+			width(),
+			_height,
+			_st,
+			sectionFirst(),
+			sectionLast(),
+			selected)) {
+		if (selected && _st.itemBgOver->c.alpha() < 255) {
+			p.fillRect(0, 0, width(), _height, _st.itemBg);
+		}
+		p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
 	}
-	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
 	if (isEnabled()) {
 		paintRipple(p, 0, 0);
 	}

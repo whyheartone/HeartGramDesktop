@@ -344,6 +344,7 @@ private:
 	Data _voiceData;
 	std::unique_ptr<MusicListenTracker> _listenTracker;
 	bool _roundPlaying = false;
+	bool _songPausedByRound = false;
 
 	rpl::event_stream<Switch> _switchToNext;
 	rpl::event_stream<AudioMsgId::Type> _tracksFinished;

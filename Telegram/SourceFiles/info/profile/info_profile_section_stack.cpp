@@ -17,18 +17,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_info.h"
 
+// AyuGram includes
+#include "ayu/ayu_ui_settings.h"
+#include <algorithm>
+#include "ui/effects/animation_value.h"
+#include "ui/painter.h"
+#include "ui/widgets/buttons.h"
+#include "styles/palette.h"
+
 namespace Info::Profile {
 namespace {
 
 [[nodiscard]] not_null<Ui::SlideWrap<>*> CreatePlainSeparator(
 		not_null<Ui::VerticalLayout*> layout) {
 	auto inner = object_ptr<Ui::VerticalLayout>(layout);
-	Ui::AddSkip(inner.data(), st::infoProfileSkip);
+	const auto material = AyuUiSettings::isMaterialSettings();
+	if (!material) {
+		Ui::AddSkip(inner.data(), st::infoProfileSkip);
+	}
 	inner->add(object_ptr<Ui::BoxContentDivider>(
 		inner.data(),
-		st::boxDividerHeight,
+		material ? style::ConvertScale(4) : st::boxDividerHeight,
 		st::defaultDividerBar));
-	Ui::AddSkip(inner.data(), st::infoProfileSkip);
+	if (!material) {
+		Ui::AddSkip(inner.data(), st::infoProfileSkip);
+	}
 	return layout->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		layout,
 		std::move(inner)));
@@ -180,9 +193,15 @@ void SectionStack::finalize() {
 
 	_finalized = true;
 
-	Ui::AddSkip(_layout, st::infoProfileSkip);
+	Ui::AddSkip(
+		_layout,
+		AyuUiSettings::isMaterialSettings()
+			? style::ConvertScale(4)
+			: st::infoProfileSkip);
 
 	const auto count = int(_rows.size());
+	const auto cards = std::make_shared<std::vector<QPointer<QWidget>>>();
+	const auto blocks = std::make_shared<std::vector<QPointer<QWidget>>>();
 	auto kinds = std::vector<RowType>();
 	auto intrinsic = std::vector<rpl::producer<bool>>();
 	auto separators = std::vector<Ui::SlideWrap<>*>(count, nullptr);
@@ -198,7 +217,29 @@ void SectionStack::finalize() {
 		kinds.push_back(row.type);
 		switch (row.type) {
 		case RowType::Block:
-			_layout->add(std::move(row.widget));
+			{
+				const auto hasButtons = [](not_null<QWidget*> widget) {
+					if (dynamic_cast<Ui::SettingsButton*>(widget.get())) {
+						return true;
+					}
+					for (const auto child : widget->findChildren<QWidget*>()) {
+						if (dynamic_cast<Ui::SettingsButton*>(child)) {
+							return true;
+						}
+					}
+					return false;
+				};
+				const auto card = !hasButtons(row.widget.data());
+				const auto block = _layout->add(std::move(row.widget));
+				blocks->push_back(block);
+				if (card) {
+					cards->push_back(block);
+					block->geometryValue(
+					) | rpl::on_next([layout = _layout] {
+						layout->update();
+					}, block->lifetime());
+				}
+			}
 			intrinsic.push_back(shownOrTrue(std::move(row.shown)));
 			break;
 		case RowType::PlainSeparator:
@@ -214,6 +255,125 @@ void SectionStack::finalize() {
 			break;
 		}
 	}
+
+	_layout->paintRequest(
+	) | rpl::on_next([=, layout = _layout] {
+		if (!AyuUiSettings::isMaterialSettings() || cards->empty()) {
+			return;
+		}
+		auto buttons = std::vector<std::pair<Ui::SettingsButton*, QRect>>();
+		for (const auto child : layout->findChildren<QWidget*>()) {
+			const auto button = dynamic_cast<Ui::SettingsButton*>(child);
+			if (button
+				&& button->height() > 0
+				&& button->isVisibleTo(layout)
+				&& (button->visibleRegion().boundingRect().height()
+					>= style::ConvertScale(16))) {
+				buttons.emplace_back(
+					button,
+					QRect(button->mapTo(layout, QPoint()), button->size()));
+			}
+		}
+		auto p = QPainter(layout);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto side = style::ConvertScale(8);
+		const auto join = style::ConvertScale(2);
+		const auto reach = style::ConvertScale(12);
+		const auto extend = style::ConvertScale(6);
+		p.setPen(Qt::NoPen);
+		p.setBrush(anim::color(
+			st::windowBg->c,
+			st::windowFg->c,
+			0.045));
+		auto joinTop = std::vector<Ui::SettingsButton*>();
+		auto joinBottom = std::vector<Ui::SettingsButton*>();
+		for (const auto &weak : *cards) {
+			const auto block = weak.data();
+			if (!block || block->isHidden() || block->height() <= 0) {
+				continue;
+			}
+			const auto blockTop = block->y();
+			const auto blockBottom = block->y() + block->height();
+			auto below = (Ui::SettingsButton*)nullptr;
+			auto belowRect = QRect();
+			auto above = (Ui::SettingsButton*)nullptr;
+			auto aboveRect = QRect();
+			for (const auto &[button, rect] : buttons) {
+				if (rect.y() >= blockBottom - reach
+					&& rect.y() <= blockBottom + reach
+					&& (!below || rect.y() < belowRect.y())) {
+					below = button;
+					belowRect = rect;
+				}
+				const auto end = rect.y() + rect.height();
+				if (end <= blockTop + reach
+					&& end >= blockTop - reach
+					&& (!above || end > aboveRect.y() + aboveRect.height())) {
+					above = button;
+					aboveRect = rect;
+				}
+			}
+			if (below) {
+				joinTop.push_back(below);
+			}
+			if (above) {
+				joinBottom.push_back(above);
+			}
+			const auto along = below
+				? belowRect
+				: above
+				? aboveRect
+				: buttons.empty()
+				? QRect()
+				: buttons.front().second;
+			const auto left = along.isNull() ? side : (along.x() + side);
+			const auto right = along.isNull()
+				? (layout->width() - side)
+				: (along.x() + along.width() - side);
+			const auto top = above
+				? (aboveRect.y() + aboveRect.height() + join / 2)
+				: std::max(
+					blockTop + style::ConvertScale(3),
+					style::ConvertScale(7));
+			const auto bottom = below
+				? (belowRect.y() - join / 2)
+				: (blockBottom + extend - style::ConvertScale(3));
+			const auto r = QRectF(left, top, right - left, bottom - top);
+			if (r.width() <= 0 || r.height() <= 0) {
+				continue;
+			}
+			const auto big = std::min(
+				qreal(style::ConvertScale(20)),
+				r.height() * 0.2);
+			const auto small = qreal(style::ConvertScale(6));
+			const auto upper = above ? small : big;
+			const auto lower = below ? small : big;
+			auto path = QPainterPath();
+			path.moveTo(r.left() + upper, r.top());
+			path.lineTo(r.right() - upper, r.top());
+			path.arcTo(QRectF(r.right() - 2 * upper, r.top(), 2 * upper, 2 * upper), 90, -90);
+			path.lineTo(r.right(), r.bottom() - lower);
+			path.arcTo(QRectF(r.right() - 2 * lower, r.bottom() - 2 * lower, 2 * lower, 2 * lower), 0, -90);
+			path.lineTo(r.left() + lower, r.bottom());
+			path.arcTo(QRectF(r.left(), r.bottom() - 2 * lower, 2 * lower, 2 * lower), 270, -90);
+			path.lineTo(r.left(), r.top() + upper);
+			path.arcTo(QRectF(r.left(), r.top(), 2 * upper, 2 * upper), 180, -90);
+			path.closeSubpath();
+			p.drawPath(path);
+		}
+		for (const auto &[button, rect] : buttons) {
+			const auto top = std::find(joinTop.begin(), joinTop.end(), button) != joinTop.end();
+			const auto bottom = std::find(joinBottom.begin(), joinBottom.end(), button) != joinBottom.end();
+			if (button->property("hgJoinTop").toBool() != top) {
+				button->setProperty("hgJoinTop", top);
+				button->update();
+			}
+			if (button->property("hgJoinBottom").toBool() != bottom) {
+				button->setProperty("hgJoinBottom", bottom);
+				button->update();
+			}
+		}
+	}, _layout->lifetime());
 
 	Ui::AddSkip(_layout, st::infoProfileSkip);
 

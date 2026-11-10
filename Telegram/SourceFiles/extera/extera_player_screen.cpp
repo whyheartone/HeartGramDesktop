@@ -983,6 +983,8 @@ private:
 	void loadTrack(const AudioMsgId &id);
 	void setCover(const PlayerCover &cover);
 	void refreshQueue();
+	void createVeil();
+	void createTitleTint();
 	void setMode(int mode);
 	void updateLyricIndex(bool animated);
 	void updateControlTargets();
@@ -1056,6 +1058,9 @@ private:
 	PlayerPalette _to;
 	Ui::Animations::Simple _colorAnimation;
 	Ui::Animations::Simple _showAnimation;
+	base::unique_qptr<Ui::RpWidget> _veil;
+	base::unique_qptr<Ui::RpWidget> _titleTint;
+	QPixmap _veilImage;
 	Ui::Animations::Basic _frames;
 	crl::time _lastFrame = 0;
 
@@ -1344,16 +1349,73 @@ Screen::Screen(
 			_selectContainer[int(id)].jump(_selectContainer[int(id)].target);
 		}
 	}
-	_showAnimation.start([=] { update(); }, 0., 1., kShowDuration, anim::easeOutCubic);
+	_veilImage = parent->grab();
+	_showAnimation.start([=] {
+		update();
+		if (_veil) {
+			if (_showAnimation.value(1.) >= 1.) {
+				_veil.reset();
+			} else {
+				_veil->update();
+			}
+		}
+		if (_titleTint) {
+			_titleTint->update();
+		}
+	}, 0., 1., kShowDuration, anim::easeOutCubic);
 	_previousFocus = QApplication::focusWidget();
 	createBackdrop();
+	createVeil();
+	createTitleTint();
 	show();
 	raise();
 	setFocus();
 }
 
+void Screen::createVeil() {
+	if (_veilImage.isNull()) {
+		return;
+	}
+	_veil.reset(Ui::CreateChild<Ui::RpWidget>(parentWidget()));
+	const auto veil = _veil.get();
+	veil->setAttribute(Qt::WA_TransparentForMouseEvents);
+	veil->setGeometry(geometry());
+	veil->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(veil);
+		p.setOpacity(1. - Clamp01(_showAnimation.value(1.)));
+		p.drawPixmap(veil->rect(), _veilImage);
+	}, veil->lifetime());
+	veil->stackUnder(this);
+	veil->show();
+}
+
+void Screen::createTitleTint() {
+	const auto title = _controller->widget()->titleWidget();
+	if (!title) {
+		return;
+	}
+	_titleTint.reset(Ui::CreateChild<Ui::RpWidget>(title));
+	const auto tint = _titleTint.get();
+	tint->setAttribute(Qt::WA_TransparentForMouseEvents);
+	title->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		tint->setGeometry(QRect(QPoint(), size));
+	}, tint->lifetime());
+	tint->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(tint);
+		p.setOpacity(Clamp01(_showAnimation.value(1.)));
+		p.fillRect(tint->rect(), pal().background);
+	}, tint->lifetime());
+	tint->lower();
+	tint->show();
+}
+
 void Screen::close() {
 	stopRewind();
+	_veil.reset();
+	_titleTint.reset();
 	// Without this the focus chain hands the focus to the chats search
 	// field, which then opens the search.
 	const auto previous = _previousFocus;
@@ -1684,14 +1746,21 @@ void Screen::setMode(int mode) {
 				position = i;
 			}
 		}
-		_queueScroll.jump(std::max(0., float64(position - 2) * S(56)));
+		const auto limit = std::max(
+			0.,
+			float64(int(rows.size()) * S(56))
+				- queueRectOf(Id::QueueRow).height());
+		_queueScroll.jump(std::clamp(
+			float64(position - 2) * S(56),
+			0.,
+			limit));
 	}
 	ensureFrames();
 	update();
 }
 
 void Screen::updateLyricIndex(bool animated) {
-	if (_lyrics.empty()) {
+	if (_lyrics.empty() || _lyrics.front().at == kPlainLine) {
 		_lyricIndex = -1;
 		return;
 	}
@@ -1810,7 +1879,10 @@ bool Screen::frame(crl::time now) {
 			_lineLevel.assign(_lyrics.size(), 0.28);
 		}
 		for (auto i = 0; i != int(_lineLevel.size()); ++i) {
-			const auto target = (i == _lyricIndex)
+			const auto plain = (_lyrics.front().at == kPlainLine);
+			const auto target = plain
+				? 0.9
+				: (i == _lyricIndex)
 				? 1.
 				: (_lyricIndex < 0 && i == 0)
 				? 0.62
@@ -2037,6 +2109,9 @@ int Screen::queueRowAt(QPoint point) const {
 }
 
 int Screen::lyricLineAt(QPoint point) const {
+	if (_lyrics.empty() || _lyrics.front().at == kPlainLine) {
+		return -1;
+	}
 	for (auto i = 0; i != int(_lineRects.size()); ++i) {
 		if (_lineRects[i].contains(point)) {
 			return i;
@@ -2554,6 +2629,9 @@ void Screen::paintEvent(QPaintEvent *e) {
 	paintSeek(p, c);
 	paintTransport(p, c);
 	paintToolbar(p, c);
+	if (_titleTint) {
+		_titleTint->update();
+	}
 }
 
 void Screen::paintBackdropCpu(QPainter &p) {
@@ -2962,16 +3040,23 @@ void Screen::paintSeek(QPainter &p, const PlayerPalette &c) {
 			? (1. - progress) / 0.1
 			: 1.;
 		const auto amplitude = std::max(0., _amplitude.value) * Clamp01(fade);
-		const auto k = 2. * M_PI / D(40.);
-		auto path = QPainterPath();
 		const auto end = x - gap;
-		path.moveTo(from, centerY + amplitude * std::sin(-_wavePhase));
-		for (auto px = from + 1.5; px < end; px += 1.5) {
-			path.lineTo(px, centerY + amplitude * std::sin((px - from) * k - _wavePhase));
+		if (amplitude < D(0.25)) {
+			// A near-flat polyline of tiny round-joined steps strokes as beads.
+			p.setPen(QPen(c.accent, stroke, Qt::SolidLine, Qt::RoundCap));
+			p.drawLine(QPointF(from, centerY), QPointF(end, centerY));
+		} else {
+			const auto k = 2. * M_PI / D(40.);
+			const auto step = std::max(D(1.5), 1.);
+			auto path = QPainterPath();
+			path.moveTo(from, centerY + amplitude * std::sin(-_wavePhase));
+			for (auto px = from + step; px < end; px += step) {
+				path.lineTo(px, centerY + amplitude * std::sin((px - from) * k - _wavePhase));
+			}
+			path.lineTo(end, centerY + amplitude * std::sin((end - from) * k - _wavePhase));
+			p.setPen(QPen(c.accent, stroke, Qt::SolidLine, Qt::RoundCap, Qt::BevelJoin));
+			p.drawPath(path);
 		}
-		path.lineTo(end, centerY + amplitude * std::sin((end - from) * k - _wavePhase));
-		p.setPen(QPen(c.accent, stroke, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-		p.drawPath(path);
 	}
 	p.setPen(Qt::NoPen);
 	p.setBrush(c.accent);
@@ -3194,8 +3279,11 @@ void Screen::paintLyrics(QPainter &p, const PlayerPalette &c, float64 alpha) {
 	const auto currentCenter = (current < int(_layoutTop.size()))
 		? (_layoutTop[current] + _layoutHeight[current] / 2.)
 		: 0.;
-	_lyricsContentHeight = std::max(0., _layoutTotal - stage.height() * 0.5);
-	if (now >= _manualScrollUntil) {
+	const auto plain = !_lyrics.empty() && (_lyrics.front().at == kPlainLine);
+	_lyricsContentHeight = std::max(
+		0.,
+		_layoutTotal + (plain ? D(48.) : 0.) - stage.height() * (plain ? 1. : 0.5));
+	if (!plain && now >= _manualScrollUntil) {
 		const auto target = std::max(0., currentCenter - stage.height() * 0.42);
 		if (std::abs(_lyricScroll.target - target) > 0.5) {
 			_lyricScroll.to(target);
@@ -3219,7 +3307,8 @@ void Screen::paintLyrics(QPainter &p, const PlayerPalette &c, float64 alpha) {
 	for (auto i = 0; i != int(_layouts.size()); ++i) {
 		const auto &layout = *_layouts[i];
 		const auto height = _layoutHeight[i];
-		const auto top = stage.top() + _layoutTop[i] - scroll;
+		const auto top = stage.top() + _layoutTop[i] - scroll
+			+ (plain ? fade : 0.);
 		_lineRects[i] = QRectF(stage.left() + side, top, width, height);
 		if (top + height < stage.top() || top > stage.bottom()) {
 			continue;
@@ -3362,11 +3451,15 @@ void Screen::paintQueue(QPainter &p, const PlayerPalette &c, float64 alpha) {
 	const auto rows = filteredQueue();
 	const auto owner = _id.audio() ? &_id.audio()->owner() : nullptr;
 	const auto rowHeight = S(56);
+	const auto scroll = std::clamp(
+		_queueScroll.value,
+		0.,
+		std::max(0., float64(int(rows.size()) * rowHeight) - area.height()));
 	const auto side = int(area.left()) + S(20);
 	const auto titleFont = Font(15, true);
 	const auto subFont = Font(13, false);
 	for (auto k = 0; k != int(rows.size()); ++k) {
-		const auto top = area.top() + k * rowHeight - _queueScroll.value;
+		const auto top = area.top() + k * rowHeight - scroll;
 		if (top + rowHeight < area.top() || top > area.bottom()) {
 			continue;
 		}

@@ -61,15 +61,33 @@ void BuildAppIcon(SectionBuilder &builder, AyuSectionBuilder &ayu) {
 	});
 
 	const auto controller = builder.controller();
-	builder.addButton({
+	const auto picker = builder.addButton({
 		.id = u"heartgram/appIconPicker"_q,
 		.title = rpl::single(Extera::Text(
 			u"Выбрать иконку"_q,
 			u"Choose icon"_q)),
 		.icon = { &st::menuIconPalette },
-		.label = rpl::single(AyuAssets::currentAppLogoName()),
 		.onClick = [=] { controller->show(Box(ShowIconPickerBox)); },
 	});
+	if (picker) {
+		const auto size = style::ConvertScale(32);
+		const auto preview = Ui::CreateChild<Ui::RpWidget>(picker);
+		preview->resize(size, size);
+		preview->setAttribute(Qt::WA_TransparentForMouseEvents);
+		picker->sizeValue(
+		) | rpl::on_next([=](QSize outer) {
+			preview->moveToRight(
+				style::ConvertScale(20),
+				(outer.height() - size) / 2,
+				outer.width());
+		}, preview->lifetime());
+		preview->paintRequest(
+		) | rpl::on_next([=] {
+			auto p = QPainter(preview);
+			auto hq = PainterHighQualityEnabler(p);
+			p.drawImage(preview->rect(), AyuAssets::currentAppLogo());
+		}, preview->lifetime());
+	}
 
 #if defined Q_OS_WIN || defined Q_OS_MAC
 	builder.addDivider();
@@ -205,6 +223,7 @@ void BuildAppearance(SectionBuilder &builder, AyuSectionBuilder &ayu) {
 		.getter = &AyuSettings::materialSwitches,
 		.setter = &AyuSettings::setMaterialSwitches,
 	});
+	AddExteraMaterialGroup(builder);
 	ayu.addSettingToggle({
 		.id = u"ayu/disableCustomBackgrounds"_q,
 		.altIds = { u"ayu/customThemes"_q },
