@@ -47,6 +47,7 @@ class SessionController;
 namespace Media::Player {
 
 class Dropdown;
+class PlayButton;
 class SpeedButton;
 class OrderController;
 class SpeedController;
@@ -95,6 +96,9 @@ private:
 	void updateOverLabelsState(QPoint pos);
 	void updateOverLabelsState(bool over);
 	void hidePlaylistOn(not_null<Ui::RpWidget*> widget);
+	void hideDropdownsOn(not_null<Ui::RpWidget*> widget);
+	void hideDropdowns(not_null<Ui::RpWidget*> except);
+	[[nodiscard]] bool overDropdownControl(QPoint globalPosition) const;
 
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
@@ -163,7 +167,7 @@ private:
 	object_ptr<Ui::FadeWrap<Ui::RpWidget>> _rightControls;
 	object_ptr<Ui::LabelSimple> _timeLabel;
 	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
-	object_ptr<Ui::IconButton> _playPause;
+	object_ptr<PlayButton> _playPause;
 	object_ptr<Ui::IconButton> _nextTrack = { nullptr };
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::IconButton> _repeatToggle;

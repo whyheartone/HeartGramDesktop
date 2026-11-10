@@ -443,10 +443,6 @@ const style::PeerList &PeerListController::computeListSt() const {
 	return _listSt ? *_listSt : st::peerListBox;
 }
 
-const style::MultiSelect &PeerListController::computeSelectSt() const {
-	return _selectSt ? *_selectSt : st::defaultMultiSelect;
-}
-
 void PeerListController::showFinished() {
 	if (const auto onstack = _showFinished) {
 		onstack();
@@ -1214,7 +1210,10 @@ PeerListContent::PeerListContent(
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	_controller->session().changes().peerUpdates(
-		UpdateFlag::Name | UpdateFlag::Photo | UpdateFlag::EmojiStatus
+		UpdateFlag::Name
+		| UpdateFlag::Photo
+		| UpdateFlag::EmojiStatus
+		| UpdateFlag::BarSettings
 	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::Name) {
 			handleNameChanged(update.peer);
@@ -1222,6 +1221,15 @@ PeerListContent::PeerListContent(
 		if (update.flags & UpdateFlag::Photo) {
 			invalidateLoadedUserpics();
 			this->update();
+		}
+		if (update.flags & UpdateFlag::BarSettings) {
+			const auto byPeer = _rowsByPeer.find(update.peer);
+			if (byPeer != _rowsByPeer.cend()) {
+				for (const auto &row : byPeer->second) {
+					_rowsScrollCache.invalidate(row->id());
+					updateRow(row);
+				}
+			}
 		}
 	}, lifetime());
 
@@ -1629,12 +1637,10 @@ int PeerListContent::labelHeight() const {
 
 void PeerListContent::refreshRows() {
 	if (!_hiddenRows.empty()) {
-		if (!_ignoreHiddenRowsOnSearch || _normalizedSearchQuery.isEmpty()) {
-			_filterResults.clear();
-			for (const auto &row : _rows) {
-				if (!row->hidden()) {
-					_filterResults.push_back(row.get());
-				}
+		_filterResults.clear();
+		for (const auto &row : _rows) {
+			if (!row->hidden()) {
+				_filterResults.push_back(row.get());
 			}
 		}
 	}
@@ -2474,13 +2480,10 @@ void PeerListContent::checkScrollForPreload() {
 void PeerListContent::searchQueryChanged(QString query) {
 	const auto searchWordsList = TextUtilities::PrepareSearchWords(query);
 	const auto normalizedQuery = searchWordsList.join(' ');
-	if (_ignoreHiddenRowsOnSearch && !normalizedQuery.isEmpty()) {
-		_filterResults.clear();
-	}
 	if (_normalizedSearchQuery != normalizedQuery) {
 		setSearchQuery(query, normalizedQuery);
 		if (_controller->searchInLocal() && !searchWordsList.isEmpty()) {
-			Assert(_hiddenRows.empty() || _ignoreHiddenRowsOnSearch);
+			Assert(_hiddenRows.empty());
 
 			auto minimalList = (const std::vector<not_null<PeerListRow*>>*)nullptr;
 			for (const auto &searchWord : searchWordsList) {
@@ -2617,10 +2620,6 @@ PeerListRowId PeerListContent::updateFromParentDrag(QPoint globalPosition) {
 
 void PeerListContent::dragLeft() {
 	clearSelection();
-}
-
-void PeerListContent::setIgnoreHiddenRowsOnSearch(bool value) {
-	_ignoreHiddenRowsOnSearch = value;
 }
 
 void PeerListContent::visibleTopBottomUpdated(
