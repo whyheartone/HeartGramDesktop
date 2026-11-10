@@ -39,12 +39,22 @@ jobs:
         shell: cmd
 
     steps:
-      - name: Prepare directories.
+      - name: Free disk space and prepare directories.
+        shell: pwsh
         run: |
-          mkdir %userprofile%\TBuild\Libraries
-          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
-          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
-          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+          # The Rust wallet engine and Qt need far more than a stock runner has free.
+          $extra = @('C:\Android', 'C:\Program Files (x86)\Android', 'C:\Program Files\Android', 'C:\Julia', 'C:\Strawberry', 'C:\Program Files\PostgreSQL', 'C:\Program Files\MySQL', 'C:\Program Files\Microsoft SQL Server', 'C:\Program Files (x86)\Microsoft SQL Server', 'C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk', 'C:\hostedtoolcache\windows\go', 'C:\hostedtoolcache\windows\Ruby')
+          foreach ($path in $extra) {
+            if (Test-Path $path) { Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $path }
+          }
+          Get-PSDrive -PSProvider FileSystem | ForEach-Object { "{0}: {1:N1} GB free" -f $_.Name, ($_.Free / 1GB) }
+          $drive = (Get-PSDrive -Name C, D -ErrorAction SilentlyContinue | Sort-Object Free -Descending | Select-Object -First 1).Name
+          "Building on drive ${drive}:"
+          $root = "${drive}:\TBuild"
+          New-Item -ItemType Directory -Force "$root\Libraries" | Out-Null
+          cmd /c mklink /d "$env:GITHUB_WORKSPACE\TBuild" $root
+          "TBUILD=$env:GITHUB_WORKSPACE\TBuild" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "LibrariesPath=$env:GITHUB_WORKSPACE\TBuild\Libraries\win64" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Get repository name.
         shell: bash
@@ -321,6 +331,7 @@ jobs:
           TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
           TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
         run: |
+          mkdir -p "$CCACHE_DIR"
           docker run --rm \
           -u $(id -u) \
           -v $PWD:/usr/src/tdesktop \
