@@ -1,154 +1,46 @@
-# AyuGram
-
-![AyuGram Лого](.github/AyuGram.png) ![AyuChan](.github/AyuChan.png)
+# HeartGram Desktop
 
 [ [English](README.md)  | Русский ]
 
+Неофициальный клиент Telegram для Windows и Linux. Форк [AyuGram Desktop](https://github.com/AyuGram/AyuGramDesktop)
+с функциями [exteraGram](https://exteragram.app) и Python-плагинами, основан на [Telegram Desktop](https://github.com/telegramdesktop/tdesktop).
+
+> HeartGram не разрабатывается и не поддерживается Telegram, AyuGram и exteraGram. Используйте на свой риск.
+
 ## Функции и Фишки
 
-- Полный режим призрака (настраиваемый)
-- История удалений и изменений сообщений
-- Кастомизация шрифта
-- Режим Стримера
-- Локальный телеграм премиум
-- Переводчик
-- Превью медиа и быстрая реакция при сильном нажатии на тачпад (macOS)
-- Улучшенный вид
-
-И многое другое. Посмотрите нашу [Документацию](https://docs.ayugram.one/desktop/) для более подробной информации.
-
-<h3>
-  <details>
-    <summary>Превью</summary>
-    <table>
-      <tr>
-        <td><img src='.github/demos/demo1.png' width='268' alt='Preferences'></td>
-        <td><img src='.github/demos/demo2.png' width='268' alt='AyuGram Options'></td>
-        <td><img src='.github/demos/demo3.png' width='268' alt='Message Filters'></td>
-      </tr>
-      <tr>
-        <td><img src='.github/demos/demo4.png' width='268' alt='Appearance'></td>
-        <td><img src='.github/demos/demo5.png' width='268' alt='Chats'></td>
-      </tr>
-    </table>
-  </details>
-</h3>
+- Всё из AyuGram Desktop: режим призрака, история правок и удалённых сообщений, фильтры, кастомизация шрифта и оформления
+- Настройки exteraGram: чаты, боковое меню, навигация, быстрые действия
+- Полноэкранный плеер в Material Design 3: очередь, текст песни, панель скорости, фон в такт музыке
+- Отдельная громкость для песен и для голосовых и кружков
+- Python-плагины (`.plugin`) с локальным разбором безопасности и проверкой источника при установке
+- Подменю «Плагины» в меню сообщения, «Детали» сообщения (ID, даты, правки, пересылки, файл)
+- Встроенные Animated Messages, калькулятор в поле ввода
 
 ## Установка
 
+Готовые сборки лежат во вкладке [Releases](../../releases).
+
 ### Windows
 
-#### Официальная версия
+Скачайте архив для Windows, распакуйте в любую папку и запустите `HeartGram.exe`.
+Данные хранятся рядом с программой (портативный режим).
 
-Вы можете скачать готовый бинарный файл со вкладки [Releases](https://github.com/AyuGram/AyuGramDesktop/releases) или из
-[Телеграм канала](https://t.me/AyuGramReleases).
+### Linux
 
-#### Winget
+Скачайте архив для Linux, распакуйте и запустите бинарник `HeartGram`. Работает на Arch Linux и других дистрибутивах
+с обычными библиотеками Qt и системными библиотеками.
 
-```bash
-winget install RadolynLabs.AyuGramDesktop
-```
+## Сборка
 
-#### Scoop
+HeartGram собирается так же, как Telegram Desktop, инструкции в [docs](docs): [Windows](docs/building-win.md),
+[Linux](docs/building-linux.md). Понадобятся свои `api_id` и `api_hash`, см. заметки в документации.
+GitHub Actions в этом репозитории собирают бинарники для Windows и Linux на каждый релиз.
 
-```bash
-scoop bucket add extras
-scoop install ayugram
-```
+## Благодарности и лицензия
 
-#### Сборка вручную
+- [Telegram Desktop](https://github.com/telegramdesktop/tdesktop), Telegram FZ-LLC
+- [AyuGram Desktop](https://github.com/AyuGram/AyuGramDesktop), Radolyn Labs
+- Команда [exteraGram](https://exteragram.app) и [exteraDesktop](https://github.com/metawka/exteraDesktop), [@metawka](https://t.me/metawka)
 
-Следуйте [официальному руководству](https://github.com/AyuGram/AyuGramDesktop/blob/dev/docs/building-win-x64.md), если
-вы хотите собрать AyuGram сами.
-
-### macOS
-
-#### Официальная версия
-
-Вы можете скачать подписанный пакет со вкладки [Releases](https://github.com/AyuGram/AyuGramDesktop/releases).
-
-#### Homebrew
-
-```bash
-brew install --cask ayugram
-```
-
-### Arch Linux
-
-#### Из исходников (рекомендованный способ)
-
-Установите `ayugram-desktop` из [AUR](https://aur.archlinux.org/packages/ayugram-desktop).
-
-#### Готовые бинарники
-
-Установите `ayugram-desktop-bin` из [AUR](https://aur.archlinux.org/packages/ayugram-desktop-bin).
-
-Примечание: данный пакет собирается не нами.
-
-### NixOS
-
-#### Флейк (рекомендуется)
-
-Установите `ayugram-desktop` из [ndfined-crp/ayugram-desktop](https://github.com/ndfined-crp/ayugram-desktop)
-
-#### Nixpkgs
-
-Установите `ayugram-desktop` из [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=ayugram-desktop)
-
-### ALT Linux
-
-[Sisyphus](https://packages.altlinux.org/en/sisyphus/srpms/ayugram-desktop/)
-
-### Gentoo Linux
-
-Инструкцию по установке можно найти в [этом репозитории](https://codeberg.org/OverLessArtem/ayugram-ebuild-gentoo).
-
-### Void Linux
-Инструкцию по установке можно найти в [этом репозитории](https://codeberg.org/OverLessArtem/ayugram-template-void)
-
-### EPM
-
-`epm play ayugram`
-
-### Fedora
-
-Из репозитория [RPM Fusion](https://admin.rpmfusion.org/pkgdb/package/free/ayugram-desktop/).
-
-```bash
-dnf install ayugram-desktop
-```
-
-### Любой другой Линукс дистрибутив
-
-Flatpak: https://github.com/0FL01/AyuGramDesktop-flatpak
-
-Или следуйте [официальному руководству](https://github.com/AyuGram/AyuGramDesktop/blob/dev/docs/building-linux.md).
-
-## Пожертвования
-
-Вам нравится использовать **AyuGram**? Оставьте нам чаевые!
-
-[Здесь доступные варианты.](https://docs.ayugram.one/donate/)
-
-## Использованные материалы
-
-### Телеграм клиенты
-
-- [Telegram Desktop](https://github.com/telegramdesktop/tdesktop)
-- [Kotatogram](https://github.com/kotatogram/kotatogram-desktop)
-- [64Gram](https://github.com/TDesktop-x64/tdesktop)
-- [Forkgram](https://github.com/forkgram/tdesktop)
-
-### Использованные библиотеки
-
-- [JSON for Modern C++](https://github.com/nlohmann/json)
-- [SQLite](https://github.com/sqlite/sqlite)
-- [sqlite_orm](https://github.com/fnc12/sqlite_orm)
-
-### Иконки
-
-- [Solar Icon Set](https://www.figma.com/community/file/1166831539721848736)
-
-### Боты
-
-- [TelegramDB](https://t.me/tgdatabase) для получения юзернейма по ID (до закрытия бесплатной версии 2 апреля 2026)
+Лицензия: [GNU GPL v3](LICENSE) с [исключением OpenSSL](LEGAL).

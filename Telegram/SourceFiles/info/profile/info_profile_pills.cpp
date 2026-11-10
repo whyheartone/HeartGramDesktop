@@ -18,6 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "wallet/wallet_card_view.h"
 
+// AyuGram includes
+#include "extera/extera_streamer.h"
+
+
 #include "styles/style_info.h"
 #include "styles/style_info_profile_top_bar.h"
 
@@ -35,6 +39,9 @@ constexpr auto kFadeStart = 0.6;
 	) | rpl::then(
 		savedMusic->changed() | rpl::filter(rpl::mappers::_1 == peerId)
 	) | rpl::map([=]() -> DocumentData* {
+		if (user->isSelf() && Extera::Streamer::HideProfile()) {
+			return nullptr;
+		}
 		const auto &list = savedMusic->list(peerId);
 		const auto media = list.empty() ? nullptr : list.front()->media();
 		return media ? media->document() : nullptr;

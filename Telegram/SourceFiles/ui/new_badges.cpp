@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_settings.h"
 
+// AyuGram includes
+#include "ayu/ayu_ui_settings.h"
+
+
 namespace Ui {
 
 Text::PaletteDependentEmoji AttentionMarkEmoji() {
@@ -117,6 +121,7 @@ void AddAfterButtonText(
 		badge->setVisible(available >= badge->width());
 		if (!badge->isHidden()) {
 			const auto top = st.padding.top()
+				+ AyuUiSettings::settingsRowExtra()
 				+ st.style.font->ascent
 				- st::settingsPremiumNewBadge.style.font->ascent
 				- st::settingsPremiumNewBadgePadding.top();
