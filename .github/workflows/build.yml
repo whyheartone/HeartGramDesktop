@@ -1,0 +1,320 @@
+name: Build and release.
+
+# Windows x64 and Linux binaries. A pushed tag "v*" attaches them to a GitHub
+# Release. The first run on an empty cache may hit the 6 hour job limit: start
+# it by hand with "only_cache" on, repeat until the libraries are cached, then
+# run it normally.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      only_cache:
+        description: "Only build and cache the libraries, skip the application."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+
+  windows:
+    name: Windows x64
+    runs-on: windows-latest
+
+    env:
+      ONLY_CACHE: ${{ inputs.only_cache && 'true' || 'false' }}
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Get repository name.
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: First set up.
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+
+      - uses: Eden-CI/msvc-dev-cmd@master
+        name: Native Tools Command Prompt.
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: '14.44'
+
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: ThirdParty cache.
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-third-party-
+
+      - name: Libraries cache.
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            !${{ env.LibrariesPath }}\python311
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-libs-v1-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-libs-v1-
+
+      - name: Qt cache.
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-qt6-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-qt6-
+
+      - name: Libraries.
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent qt6
+
+      - name: Python for plugins.
+        if: env.ONLY_CACHE == 'false'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'python-embed.zip'
+          Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip -OutFile $zip
+          $root = Join-Path $env:LibrariesPath 'python311'
+          $embed = Join-Path $root 'embed'
+          New-Item -ItemType Directory -Force $embed | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $embed -Force
+          $installer = Join-Path $env:RUNNER_TEMP 'python-installer.exe'
+          Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe -OutFile $installer
+          $target = Join-Path $env:RUNNER_TEMP 'py311'
+          Start-Process -FilePath $installer -Wait -ArgumentList '/quiet', "TargetDir=$target", 'Include_dev=1', 'Include_pip=1', 'Include_test=0', 'Include_launcher=0', 'InstallLauncherAllUsers=0', 'Shortcuts=0'
+          New-Item -ItemType Directory -Force (Join-Path $root 'include'), (Join-Path $root 'libs') | Out-Null
+          Copy-Item -Recurse -Force (Join-Path $target 'include\*') (Join-Path $root 'include')
+          Copy-Item -Force (Join-Path $target 'libs\python311.lib') (Join-Path $root 'libs')
+          $site = Join-Path $embed 'Lib\site-packages'
+          & (Join-Path $target 'python.exe') -m pip install --no-cache-dir --target $site -r "$env:TBUILD\$env:REPO_NAME\heartgram-tools\python-requirements.txt"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Secrets.
+        if: env.ONLY_CACHE == 'false'
+        shell: bash
+        env:
+          BADGE_SECRETS_H: ${{ secrets.BADGE_SECRETS_H }}
+        run: |
+          if [ -n "$BADGE_SECRETS_H" ]; then
+            printf '%s\n' "$BADGE_SECRETS_H" > "$TBUILD/$REPO_NAME/Telegram/SourceFiles/ayu/features/project_badges/badge_secrets.h"
+          fi
+
+      - name: Free up some disk space.
+        shell: bash
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' -o -path '*/python311/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: HeartGram build.
+        if: env.ONLY_CACHE == 'false'
+        env:
+          TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
+          TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+
+          call configure.bat ^
+          x64 ^
+          qt6 ^
+          -D TDESKTOP_API_ID=%TDESKTOP_API_ID% ^
+          -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% ^
+          -D CMAKE_CONFIGURATION_TYPES=Release ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+          cmake --build ..\out --config Release --parallel
+
+      - name: Pack.
+        if: env.ONLY_CACHE == 'false'
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:TBUILD "$env:REPO_NAME\out\Release"
+          $dir = New-Item -ItemType Directory -Force 'HeartGram-windows-x64'
+          Copy-Item (Join-Path $out 'HeartGram.exe') $dir
+          if (Test-Path (Join-Path $out 'Updater.exe')) { Copy-Item (Join-Path $out 'Updater.exe') $dir }
+          Copy-Item -Recurse (Join-Path $out 'python') (Join-Path $dir 'python')
+          Compress-Archive -Path $dir -DestinationPath 'HeartGram-windows-x64.zip' -Force
+
+      - uses: actions/upload-artifact@v7
+        name: Upload artifact.
+        if: env.ONLY_CACHE == 'false'
+        with:
+          name: HeartGram-windows-x64
+          path: HeartGram-windows-x64.zip
+          retention-days: 7
+
+  linux:
+    name: Linux x64
+    runs-on: ubuntu-latest
+
+    env:
+      ONLY_CACHE: ${{ inputs.only_cache && 'true' || 'false' }}
+      IMAGE_TAG: tdesktop:centos_env
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: First set up.
+        run: |
+          sudo apt update
+          curl -sSL https://install.python-poetry.org | python3 -
+          cd Telegram/build/docker/centos_env
+          poetry install
+          DOCKERFILE=$(DEBUG= LTO= poetry run gen_dockerfile)
+          echo "$DOCKERFILE" > Dockerfile
+          rm -rf __pycache__
+
+      - name: Free up some disk space.
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6
+        with:
+          tool-cache: true
+
+      - name: Set up Docker Buildx.
+        id: setup-buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ runner.temp }}/.buildx-cache
+            ${{ runner.temp }}/.mount-cache
+          key: ${{ runner.OS }}-libs-${{ hashFiles('Telegram/build/docker/centos_env/**') }}
+          restore-keys: ${{ runner.OS }}-libs-
+
+      - name: Restore Docker cache mounts.
+        uses: reproducible-containers/buildkit-cache-dance@5422eac04292c961a382e0f584ea0f03ad9da723
+        with:
+          builder: ${{ steps.setup-buildx.outputs.name }}
+          cache-dir: ${{ runner.temp }}/.mount-cache
+          dockerfile: Telegram/build/docker/centos_env/Dockerfile
+          skip-extraction: ${{ steps.cache-libs.outputs.cache-hit }}
+
+      - name: Libraries.
+        uses: docker/build-push-action@v7
+        with:
+          context: Telegram/build/docker/centos_env
+          load: ${{ env.ONLY_CACHE == 'false' }}
+          tags: ${{ env.IMAGE_TAG }}
+          cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
+          cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
+
+      - name: Move cache.
+        run: |
+          rm -rf ${{ runner.temp }}/.buildx-cache
+          mv ${{ runner.temp }}/.buildx-cache{-new,}
+
+      - name: Secrets.
+        if: env.ONLY_CACHE == 'false'
+        env:
+          BADGE_SECRETS_H: ${{ secrets.BADGE_SECRETS_H }}
+        run: |
+          if [ -n "$BADGE_SECRETS_H" ]; then
+            printf '%s\n' "$BADGE_SECRETS_H" > Telegram/SourceFiles/ayu/features/project_badges/badge_secrets.h
+          fi
+
+      - name: HeartGram build.
+        if: env.ONLY_CACHE == 'false'
+        env:
+          TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
+          TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
+        run: |
+          docker run --rm \
+          -u $(id -u) \
+          -v $PWD:/usr/src/tdesktop \
+          -e CONFIG=Release \
+          $IMAGE_TAG \
+          /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
+          -D CMAKE_CONFIGURATION_TYPES=Release \
+          -D TDESKTOP_API_ID=$TDESKTOP_API_ID \
+          -D TDESKTOP_API_HASH=$TDESKTOP_API_HASH \
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+      - name: Pack.
+        if: env.ONLY_CACHE == 'false'
+        run: |
+          binary=$(find out -type f -name HeartGram | head -1)
+          test -n "$binary" || { echo "Build error, output file does not exist."; exit 1; }
+          mkdir HeartGram-linux-x86_64
+          cp "$binary" HeartGram-linux-x86_64/
+          strip HeartGram-linux-x86_64/HeartGram
+          tar -czf HeartGram-linux-x86_64.tar.gz HeartGram-linux-x86_64
+
+      - uses: actions/upload-artifact@v7
+        name: Upload artifact.
+        if: env.ONLY_CACHE == 'false'
+        with:
+          name: HeartGram-linux-x86_64
+          path: HeartGram-linux-x86_64.tar.gz
+          retention-days: 7
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Release.
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/HeartGram-windows-x64.zip
+            dist/HeartGram-linux-x86_64.tar.gz
+          body_path: RELEASE_NOTES.md
