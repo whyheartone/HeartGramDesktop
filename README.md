@@ -28,14 +28,14 @@ Data is stored next to the executable (portable mode).
 
 ### Linux
 
-Download the Linux archive, unpack it and run the `HeartGram` binary. It works on Arch Linux and other
-distributions that have the usual Qt and system libraries installed.
+Prebuilt Linux binaries are not published yet. Build from source following [docs/building-linux.md](docs/building-linux.md);
+the Python plugin runtime is Windows-only for now, so plugins are not available on Linux.
 
 ## Building
 
 HeartGram is built like Telegram Desktop, see the instructions in [docs](docs): [Windows](docs/building-win.md),
 [Linux](docs/building-linux.md). You will need your own `api_id` and `api_hash`, see the notes in the docs.
-GitHub Actions in this repository build the Windows and Linux binaries for each release.
+GitHub Actions in this repository build the Windows binary for each release.
 
 ## Credits and license
 

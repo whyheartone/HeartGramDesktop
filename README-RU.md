@@ -28,14 +28,14 @@
 
 ### Linux
 
-Скачайте архив для Linux, распакуйте и запустите бинарник `HeartGram`. Работает на Arch Linux и других дистрибутивах
-с обычными библиотеками Qt и системными библиотеками.
+Готовые сборки для Linux пока не публикуются. Соберите из исходников по инструкции [docs/building-linux.md](docs/building-linux.md);
+среда Python-плагинов пока только для Windows, поэтому плагины на Linux недоступны.
 
 ## Сборка
 
 HeartGram собирается так же, как Telegram Desktop, инструкции в [docs](docs): [Windows](docs/building-win.md),
 [Linux](docs/building-linux.md). Понадобятся свои `api_id` и `api_hash`, см. заметки в документации.
-GitHub Actions в этом репозитории собирают бинарники для Windows и Linux на каждый релиз.
+GitHub Actions в этом репозитории собирают бинарник для Windows на каждый релиз.
 
 ## Благодарности и лицензия
 
