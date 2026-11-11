@@ -84,6 +84,13 @@ TextForMimeData AppendExtraCopyText(
 	return result;
 }
 
+TextForMimeData ShownSummaryText(not_null<HistoryItem*> item) {
+	const auto &summary = item->summaryEntry();
+	return (!summary.result.empty() && summary.shown)
+		? TextForMimeData::WithExpandedLinks(summary.result)
+		: TextForMimeData();
+}
+
 HistorySelectedTextParts TextParts(TextForMimeData &&text) {
 	auto result = HistorySelectedTextParts();
 	result.texts.push_back(std::move(text));
@@ -634,6 +641,10 @@ namespace {
 
 HistorySelectedTextParts HistoryItemTextForSelectedCopy(
 		not_null<HistoryItem*> item) {
+	auto summary = ShownSummaryText(item);
+	if (!summary.empty()) {
+		return TextParts(std::move(summary));
+	}
 	const auto media = item->media();
 	if (!media) {
 		return TextParts(HistoryItemText(item));

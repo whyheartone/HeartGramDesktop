@@ -165,7 +165,7 @@ void FillDonateQrBox(
 			st::roundRadiusLarge);
 	}, wrap->lifetime());
 
-	const auto copyButton = box->addButton(tr::lng_chat_link_copy(), [=] {
+	const auto copyButton = box->addButton(tr::lng_group_invite_context_copy(), [=] {
 		QGuiApplication::clipboard()->setText(address);
 		Ui::Toast::Show(tr::lng_text_copied(tr::now));
 	});
