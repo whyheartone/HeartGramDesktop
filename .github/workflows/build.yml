@@ -103,8 +103,10 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.TBUILD }}\ThirdParty
-          key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-third-party-
+          key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}-
+            ${{ runner.OS }}-third-party-
 
       - name: Libraries cache.
         id: cache-libs
@@ -117,8 +119,10 @@ jobs:
             !${{ env.LibrariesPath }}\python311
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-libs-v3-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-libs-v3-
+          key: ${{ runner.OS }}-libs-v3-${{ env.CACHE_KEY }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.OS }}-libs-v3-${{ env.CACHE_KEY }}-
+            ${{ runner.OS }}-libs-v3-
 
       - name: Qt cache.
         id: cache-qt
@@ -127,26 +131,29 @@ jobs:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-qt6-v2-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-qt6-v2-
+          key: ${{ runner.OS }}-qt6-v2-${{ env.CACHE_KEY }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.OS }}-qt6-v2-${{ env.CACHE_KEY }}-
+            ${{ runner.OS }}-qt6-v2-
 
       - name: Libraries.
         run: |
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent qt6
 
       - name: Free up some disk space.
+        if: always()
         shell: bash
         run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' -o -path '*/python311/*' -o -path '*/tdesktop_rust/out/*' ')' -type f ')' -o -empty ')' -delete
 
       - name: Save ThirdParty cache.
-        if: steps.cache-third-party.outputs.cache-hit != 'true'
+        if: always()
         uses: actions/cache/save@v6
         with:
           path: ${{ env.TBUILD }}\ThirdParty
-          key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}-${{ github.run_id }}
 
       - name: Save libraries cache.
-        if: steps.cache-libs.outputs.cache-hit != 'true'
+        if: always()
         uses: actions/cache/save@v6
         with:
           path: |
@@ -156,16 +163,16 @@ jobs:
             !${{ env.LibrariesPath }}\python311
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-libs-v3-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-libs-v3-${{ env.CACHE_KEY }}-${{ github.run_id }}
 
       - name: Save Qt cache.
-        if: steps.cache-qt.outputs.cache-hit != 'true'
+        if: always()
         uses: actions/cache/save@v6
         with:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-qt6-v2-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-qt6-v2-${{ env.CACHE_KEY }}-${{ github.run_id }}
 
       - name: Python for plugins.
         if: env.ONLY_CACHE == 'false'
