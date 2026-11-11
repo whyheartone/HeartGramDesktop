@@ -219,10 +219,11 @@ jobs:
           -D TDESKTOP_API_ID=%TDESKTOP_API_ID% ^
           -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% ^
           -D CMAKE_CONFIGURATION_TYPES=Release ^
+          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
 
-          cmake --build ..\out --config Release --parallel
+          cmake --build ..\out --config Release --parallel -- -k 0
 
       - name: Pack.
         if: env.ONLY_CACHE == 'false'
