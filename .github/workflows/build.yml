@@ -60,9 +60,11 @@ jobs:
           "TBUILD=$env:GITHUB_WORKSPACE\TBuild" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "LibrariesPath=$env:GITHUB_WORKSPACE\TBuild\Libraries\win64" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
-      - name: Get repository name.
+      - name: Short checkout directory.
         shell: bash
-        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+        # WHY: cl.exe fails with C1083 when an object path plus its temporary
+        # suffix passes 260 characters, and the kimageformats paths are long.
+        run: echo "REPO_NAME=hg" >> $GITHUB_ENV
 
       - name: Clone.
         uses: actions/checkout@v7
