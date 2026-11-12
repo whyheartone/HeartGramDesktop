@@ -27,6 +27,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_actions.h"
 #include "info/profile/info_profile_values.h"
 #include "info/saved/info_saved_music_widget.h"
+#include "info/saved/info_saved_music_common.h"
+#include "info/profile/info_profile_balance_pill.h"
+#include "wallet/wallet_card_view.h"
+#include "window/window_session_controller.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
@@ -34,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
+#include "data/data_user_wallet_card.h"
 #include "data/data_saved_sublist.h"
 #include "info_profile_actions.h"
 #include "main/main_session.h"
@@ -54,10 +59,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "styles/style_info.h"
+#include "styles/style_info_profile_top_bar.h"
 
 // AyuGram includes
 #include "ayu/ayu_settings.h"
 #include "settings/settings_tiles.h"
+#include "extera/extera_streamer.h"
 
 
 namespace Info {
@@ -76,6 +83,86 @@ constexpr auto kMembersInlineMax = 5;
 	}) | rpl::map([](int count) {
 		return (count > kMembersInlineMax);
 	}) | rpl::take(1);
+}
+
+void AddSavedMusic(
+		not_null<Ui::VerticalLayout*> layout,
+		not_null<Controller*> controller,
+		not_null<PeerData*> peer,
+		rpl::producer<std::optional<QColor>> topBarColor) {
+	const auto wrap = layout->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			layout,
+			object_ptr<Ui::VerticalLayout>(layout)));
+	wrap->toggleOn(
+		Info::Saved::SetupSavedMusic(
+			wrap->entity(),
+			controller,
+			peer,
+			std::move(topBarColor)),
+		anim::type::instant);
+}
+
+void AddWalletBlock(
+		not_null<Ui::VerticalLayout*> layout,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user,
+		rpl::producer<std::optional<QColor>> topBarColor) {
+	const auto wrap = layout->add(
+		object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
+			layout,
+			object_ptr<Ui::RpWidget>(layout)));
+	const auto block = wrap->entity();
+	const auto padding = st::infoMusicButtonPadding;
+	block->resize(
+		0,
+		padding.top() + st::infoProfileBalancePillHeight + padding.bottom());
+
+	const auto edge = block->lifetime().make_state<
+		std::optional<QColor>>();
+	const auto pill = Ui::CreateChild<BalancePill>(
+		block,
+		user,
+		rpl::duplicate(topBarColor));
+	pill->setFlat(true);
+	pill->setOpacity(1.);
+	pill->setClickedCallback([=] {
+		Wallet::ShowCardView(controller, user, pill);
+	});
+
+	std::move(topBarColor) | rpl::on_next([=](
+			std::optional<QColor> color) {
+		*edge = color;
+		block->update();
+	}, block->lifetime());
+	block->paintRequest() | rpl::on_next([=](QRect clip) {
+		auto p = QPainter(block);
+		p.fillRect(clip, ComputePillColors(*edge).fill);
+	}, block->lifetime());
+
+	rpl::merge(
+		block->widthValue() | rpl::to_empty,
+		pill->naturalWidthValue() | rpl::to_empty
+	) | rpl::on_next([=] {
+		const auto width = block->width();
+		pill->resizeToNaturalWidth(
+			std::max(width - padding.left() - padding.right(), 0));
+		const auto fitted = pill->fittedWidth();
+		if (fitted < pill->width()) {
+			pill->resizeToWidth(fitted);
+		}
+		pill->move((width - pill->width()) / 2, padding.top());
+	}, block->lifetime());
+
+	wrap->toggleOn(
+		user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::WalletCard
+		) | rpl::map([=] {
+			const auto card = user->walletCard();
+			return card && (card->balance > 0);
+		}) | rpl::distinct_until_changed(),
+		anim::type::instant);
 }
 
 void AddUnofficialSecurityRiskWarning(
@@ -170,8 +257,24 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 
-	if (!_savedMessages) {
+	if (!_savedMessages
+		&& !(_peer->isSelf() && Extera::Streamer::HideProfile())) {
+		const auto musicPeer = _sublist
+			? _sublist->sublistPeer().get()
+			: _peer.get();
+		AddSavedMusic(
+			result.data(),
+			_controller,
+			musicPeer,
+			_topBarColor.value());
 		if (const auto user = _peer->asUser()) {
+			if (!_topic) {
+				AddWalletBlock(
+					result.data(),
+					_controller->parentController(),
+					user,
+					_topBarColor.value());
+			}
 			AddUnofficialSecurityRiskWarning(result.data(), user);
 		}
 	}
@@ -557,6 +660,7 @@ base::weak_qptr<Ui::RpWidget> InnerWidget::createPinnedToTop(
 				members->setGroupByRole(grouped);
 			}));
 	}
+	_topBarColor = content->edgeColor();
 	_topBar = content;
 	return base::make_weak(not_null<Ui::RpWidget*>{ content });
 }

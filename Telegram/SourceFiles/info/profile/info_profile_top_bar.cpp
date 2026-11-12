@@ -534,7 +534,6 @@ TopBar::TopBar(
 	}
 
 	bindStatus();
-	setupPills(controller, std::move(descriptor.showSavedMusic));
 
 	_title->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
 	_title->setSelectable(true);

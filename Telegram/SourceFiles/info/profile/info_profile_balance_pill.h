@@ -23,6 +23,7 @@ public:
 		rpl::producer<std::optional<QColor>> edgeColor);
 
 	void setOpacity(float64 opacity);
+	void setFlat(bool flat);
 	[[nodiscard]] int fittedWidth() const;
 	[[nodiscard]] bool actionable() const;
 	[[nodiscard]] uint64 appearanceRevision() const;
@@ -55,6 +56,7 @@ private:
 	int _arrowTop = 0;
 	uint64 _appearanceRevision = 0;
 	bool _contentHidden = false;
+	bool _flat = false;
 
 };
 

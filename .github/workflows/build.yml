@@ -207,6 +207,25 @@ jobs:
             printf '%s\n' "$BADGE_SECRETS_H" > "$TBUILD/$REPO_NAME/Telegram/SourceFiles/ayu/features/project_badges/badge_secrets.h"
           fi
 
+      - name: Install ccache.
+        if: env.ONLY_CACHE == 'false'
+        shell: pwsh
+        run: |
+          choco install ccache --no-progress -y
+          "CCACHE_DIR=$env:RUNNER_TEMP\ccache" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "CCACHE_MAXSIZE=2G" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "CCACHE_COMPRESS=1" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "CCACHE_SLOPPINESS=pch_defines,time_macros" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Restore compiler cache.
+        id: cache-ccache
+        if: env.ONLY_CACHE == 'false'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}\ccache
+          key: ${{ runner.OS }}-heartgram-win-ccache-${{ github.run_id }}
+          restore-keys: ${{ runner.OS }}-heartgram-win-ccache-
+
       - name: HeartGram build.
         if: env.ONLY_CACHE == 'false'
         env:
@@ -220,6 +239,8 @@ jobs:
           qt6 ^
           -D TDESKTOP_API_ID=%TDESKTOP_API_ID% ^
           -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% ^
+          -D CMAKE_C_COMPILER_LAUNCHER=ccache ^
+          -D CMAKE_CXX_COMPILER_LAUNCHER=ccache ^
           -D CMAKE_CONFIGURATION_TYPES=Release ^
           -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
@@ -232,7 +253,16 @@ jobs:
           # The log goes to a file too: a crashed runner loses the live log.
           cd "$env:TBUILD\$env:REPO_NAME\Telegram"
           cmake --build ..\out --config Release --parallel -- -k 0 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\build.log"
-          exit $LASTEXITCODE
+          $code = $LASTEXITCODE
+          ccache -s
+          exit $code
+
+      - name: Save compiler cache.
+        if: always() && env.ONLY_CACHE == 'false'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}\ccache
+          key: ${{ runner.OS }}-heartgram-win-ccache-${{ github.run_id }}
 
       - name: Upload build log.
         if: always() && env.ONLY_CACHE == 'false'

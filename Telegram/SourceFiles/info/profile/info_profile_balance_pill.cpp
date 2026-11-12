@@ -98,6 +98,11 @@ void BalancePill::setOpacity(float64 opacity) {
 	}
 }
 
+void BalancePill::setFlat(bool flat) {
+	_flat = flat;
+	update();
+}
+
 int BalancePill::fittedWidth() const {
 	return _fittedWidth;
 }
@@ -217,7 +222,9 @@ void BalancePill::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	auto hq = PainterHighQualityEnabler(p);
 	p.setOpacity(_opacity);
-	PaintPillBackground(p, rect(), _colors);
+	if (!_flat) {
+		PaintPillBackground(p, rect(), _colors);
+	}
 	if (!_contentHidden) {
 		paintContent(p);
 	}
