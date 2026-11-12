@@ -1,6 +1,7 @@
 #include "extera/extera_animated_messages.h"
 
 #include "base/flat_map.h"
+#include "logs.h"
 #include "base/flat_set.h"
 #include "base/unixtime.h"
 #include "data/data_peer.h"
@@ -223,8 +224,10 @@ void NoteOpened() {
 
 void Mark(not_null<HistoryItem*> item) {
 	if (!Bool(u"am_enabled"_q)) {
+		LOG(("AnimatedMessages: Mark skipped, am_enabled is off."));
 		return;
 	}
+	LOG(("AnimatedMessages: Mark %1.").arg(item->id.bare));
 	auto &entries = Entries();
 	if (entries.size() > kMaxEntries) {
 		entries.clear();
@@ -285,6 +288,9 @@ Frames FramesFor(
 				entry.delay = std::min(OpenedCount++, 8) * kOpenStagger;
 			}
 			i = entries.emplace(item->fullId(), entry).first;
+			LOG(("AnimatedMessages: entry for %1 (fresh %2, opening %3).").arg(item->id.bare).arg(fresh ? 1 : 0).arg(opening ? 1 : 0));
+		} else {
+			LOG(("AnimatedMessages: %1 not animated (not fresh, am_on_open off).").arg(item->id.bare));
 		}
 	}
 	if (i == end(entries)) {

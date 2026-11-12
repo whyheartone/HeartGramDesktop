@@ -510,6 +510,7 @@ HistoryInner::HistoryInner(
 			|| (_migrated && history == _migrated);
 	}) | rpl::on_next([=](not_null<HistoryItem*> item) {
 		checkAnnounceFirstMessages();
+		LOG(("AnimatedMessages: newItemAdded %1, out %2.").arg(item->id.bare).arg(item->out() ? 1 : 0));
 		if (!item->out()) {
 			Extera::AnimatedMessages::Mark(item);
 		}
