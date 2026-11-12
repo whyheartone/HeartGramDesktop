@@ -260,6 +260,11 @@ Frames FramesFor(
 		not_null<HistoryItem*> item,
 		QSize size,
 		int dateBand) {
+	static auto calls = 0;
+	if (calls < 6) {
+		++calls;
+		LOG(("AnimatedMessages: FramesFor %1, enabled %2, on_open %3.").arg(item->id.bare).arg(Bool(u"am_enabled"_q) ? 1 : 0).arg(Bool(u"am_on_open"_q) ? 1 : 0));
+	}
 	if (!Bool(u"am_enabled"_q)) {
 		return {};
 	}
