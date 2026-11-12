@@ -108,12 +108,13 @@ void AddWalletBlock(
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> user,
 		rpl::producer<std::optional<QColor>> topBarColor) {
+	const auto padding = st::infoMusicButtonPadding;
 	const auto wrap = layout->add(
 		object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
 			layout,
-			object_ptr<Ui::RpWidget>(layout)));
+			object_ptr<Ui::RpWidget>(layout)),
+		style::margins(padding.left(), 0, padding.left(), padding.top()));
 	const auto block = wrap->entity();
-	const auto padding = st::infoMusicButtonPadding;
 	block->resize(
 		0,
 		padding.top() + st::infoProfileBalancePillHeight + padding.bottom());
@@ -135,9 +136,13 @@ void AddWalletBlock(
 		*edge = color;
 		block->update();
 	}, block->lifetime());
-	block->paintRequest() | rpl::on_next([=](QRect clip) {
+	block->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(block);
-		p.fillRect(clip, ComputePillColors(*edge).fill);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = block->height() / 2.;
+		p.setPen(Qt::NoPen);
+		p.setBrush(ComputePillColors(*edge).fill);
+		p.drawRoundedRect(QRectF(block->rect()), radius, radius);
 	}, block->lifetime());
 
 	rpl::merge(

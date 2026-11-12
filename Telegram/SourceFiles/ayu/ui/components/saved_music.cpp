@@ -325,6 +325,12 @@ void AyuMusicButton::paintEvent(QPaintEvent *e) {
 	}
 
 	auto p = Painter(this);
+	auto hq = PainterHighQualityEnabler(p);
+
+	const auto radius = height() / 2.;
+	auto pillClip = QPainterPath();
+	pillClip.addRoundedRect(QRectF(rect()), radius, radius);
+	p.setClipPath(pillClip);
 
 	const auto &font = st::infoMusicButtonTitle.style.font;
 	const auto skip = st::normalFont->spacew / 2;

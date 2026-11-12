@@ -72,6 +72,15 @@ void PaintSparks(QPainter &p, QPointF center, float64 size, QColor color) {
 	}
 }
 
+[[nodiscard]] QColor OverrideBadgeColor(
+		const style::InfoPeerBadge &st,
+		BadgeType badge) {
+	const auto ours = (badge == BadgeType::Extera)
+		|| (badge == BadgeType::ExteraSupporter)
+		|| (badge == BadgeType::ExteraCustom);
+	return ours ? st::groupCallMembersFg->c : st.premiumFg->c;
+}
+
 [[nodiscard]] bool HasPremiumClick(const Badge::Content &content) {
 	return content.badge == BadgeType::Premium
 		|| (content.badge == BadgeType::Verified && content.emojiStatusId)
@@ -214,7 +223,7 @@ void Badge::setContent(Content content) {
 						emoji,
 						0,
 						check->width(),
-						_overrideSt->premiumFg->c);
+						OverrideBadgeColor(*_overrideSt, _content.badge));
 				} else {
 					icon->paint(p, emoji, 0, check->width());
 				}
@@ -225,7 +234,7 @@ void Badge::setContent(Content content) {
 							emoji,
 							0,
 							check->width(),
-							_overrideSt->premiumFg->c);
+							OverrideBadgeColor(*_overrideSt, _content.badge));
 					} else {
 						iconForeground->paint(p, emoji, 0, check->width());
 					}
@@ -274,7 +283,7 @@ void Badge::setContent(Content content) {
 		) | rpl::on_next([=, check = _view.data()]{
 			Painter p(check);
 			if (_overrideSt) {
-				icon->paint(p, skip, 0, check->width(), _overrideSt->premiumFg->c);
+				icon->paint(p, skip, 0, check->width(), OverrideBadgeColor(*_overrideSt, _content.badge));
 			} else {
 				icon->paint(p, skip, 0, check->width());
 			}

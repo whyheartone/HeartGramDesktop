@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/saved/info_saved_music_common.h"
 
 #include "data/data_peer.h"
+#include "data/data_session.h"
 #include "data/data_saved_music.h"
 #include "data/data_saved_sublist.h"
 #include "history/history_item.h"
@@ -58,13 +59,21 @@ rpl::producer<bool> SetupSavedMusic(
 	const auto hasMusic = container->lifetime().make_state<
 		rpl::variable<bool>>(false);
 	auto musicValue = Data::SavedMusic::Supported(peer->id)
-		? Data::SavedMusicList(
-			peer,
-			nullptr,
-			1
-		) | rpl::map([=](const Data::SavedMusicSlice &data) {
-			return data.size() ? data[0].get() : nullptr;
-		}) | rpl::type_erased
+		? rpl::merge(
+			rpl::single(rpl::empty_value()),
+			Data::SavedMusicList(
+				peer,
+				nullptr,
+				1
+			) | rpl::to_empty,
+			peer->owner().savedMusic().changed(
+			) | rpl::filter(
+				rpl::mappers::_1 == peer->id
+			) | rpl::to_empty
+		) | rpl::map([=]() -> HistoryItem* {
+			const auto &list = peer->owner().savedMusic().list(peer->id);
+			return list.empty() ? nullptr : list.front().get();
+		}) | rpl::distinct_until_changed() | rpl::type_erased
 		: rpl::single<HistoryItem*>((HistoryItem*)(nullptr));
 
 	const auto divider = container->add(
@@ -86,6 +95,8 @@ rpl::producer<bool> SetupSavedMusic(
 			if (const auto document = item->media()
 					? item->media()->document()
 					: nullptr) {
+				const auto side = st::infoMusicButtonPadding.left();
+				const auto skip = st::infoMusicButtonPadding.top();
 				auto musicButton = divider->entity()->add(object_ptr<Ui::SlideWrap<Profile::AyuMusicButton>>(
 					divider->entity(),
 					object_ptr<Profile::AyuMusicButton>(
@@ -95,7 +106,8 @@ rpl::producer<bool> SetupSavedMusic(
 						[window = controller, peer]
 						{
 							window->showSection(Info::Saved::MakeMusic(peer));
-						})));
+						})),
+					style::margins(side, skip, side, skip));
 
 				musicButton->hide(anim::type::instant);
 				musicButton->ease = anim::easeOutCubic;
