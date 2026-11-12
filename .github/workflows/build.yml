@@ -225,7 +225,23 @@ jobs:
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
 
-          cmake --build ..\out --config Release --parallel -- -k 0
+      - name: HeartGram compile.
+        if: env.ONLY_CACHE == 'false'
+        shell: pwsh
+        run: |
+          # The log goes to a file too: a crashed runner loses the live log.
+          cd "$env:TBUILD\$env:REPO_NAME\Telegram"
+          cmake --build ..\out --config Release --parallel -- -k 0 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\build.log"
+          exit $LASTEXITCODE
+
+      - name: Upload build log.
+        if: always() && env.ONLY_CACHE == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-log
+          path: ${{ runner.temp }}\build.log
+          retention-days: 3
+          if-no-files-found: ignore
 
       - name: Pack.
         if: env.ONLY_CACHE == 'false'
