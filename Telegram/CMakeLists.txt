@@ -3146,6 +3146,8 @@ set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_fold
 if (WIN32)
     target_include_directories(Telegram PRIVATE ${libs_loc}/python311/include)
     target_link_libraries(Telegram PRIVATE ${libs_loc}/python311/libs/python311.lib)
+    # WHY: the static Qt6Network uses the Windows DNS API without linking it.
+    target_link_libraries(Telegram PRIVATE dnsapi)
     add_custom_command(TARGET Telegram POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${libs_loc}/python311/embed $<TARGET_FILE_DIR:Telegram>/python
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/SourceFiles/extera/python $<TARGET_FILE_DIR:Telegram>/python/extera
