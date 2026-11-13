@@ -1615,6 +1615,11 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	auto animating = false;
 	auto animatedRect = QRect();
 	const auto drawAnimated = [&](not_null<Element*> view) {
+		static auto drawCalls = 0;
+		if (drawCalls < 4) {
+			++drawCalls;
+			LOG(("AnimatedMessages: drawAnimated for %1.").arg(view->data()->id.bare));
+		}
 		const auto band = (view->displayDate() && !view->data()->isService())
 			? view->displayedDateHeight()
 			: 0;
