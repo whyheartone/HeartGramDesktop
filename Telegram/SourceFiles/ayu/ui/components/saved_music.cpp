@@ -21,6 +21,8 @@
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "ui/painter.h"
+#include "ui/effects/ripple_animation.h"
+#include "ayu/ayu_ui_settings.h"
 #include "ui/ui_utility.h"
 #include "ui/image/image.h"
 #include "ui/widgets/labels.h"
@@ -328,10 +330,7 @@ void AyuMusicButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	auto hq = PainterHighQualityEnabler(p);
 
-	const auto radius = float64(st::boxRadius);
-	auto pillClip = QPainterPath();
-	pillClip.addRoundedRect(QRectF(rect()), radius, radius);
-	p.setClipPath(pillClip);
+	const auto radius = float64(AyuUiSettings::dialogRadius(st::boxRadius));
 
 	const auto &font = st::infoMusicButtonTitle.style.font;
 	const auto skip = st::normalFont->spacew / 2;
@@ -339,22 +338,29 @@ void AyuMusicButton::paintEvent(QPaintEvent *e) {
 
 	const auto &settings = AyuSettings::getInstance();
 	const auto cover = _currentCover.value();
+	p.setPen(Qt::NoPen);
 	if (cover.noCover || !settings.adaptiveCoverColor()) {
-		p.fillRect(e->rect(), cover.bg);
-		paintRipple(p, QPoint());
+		p.setBrush(cover.bg);
 	} else {
 		QRadialGradient gradient(rect().topRight(), rect().width() * 2.0);
 		gradient.setColorAt(0, cover.bg);
 		gradient.setColorAt(1, QColor::fromRgb(AdjustHsl(cover.bg.rgb(), 1.5f)));
-		p.fillRect(rect(), gradient);
-		paintRipple(p, QPoint());
+		p.setBrush(gradient);
 	}
+	p.drawRoundedRect(QRectF(rect()), radius, radius);
+	paintRipple(p, QPoint());
 
 	if (!cover.pix.isNull()) {
 		auto hq = PainterHighQualityEnabler(p);
 		const auto coverRect = QRect(st::infoMusicButtonPadding.left(), st::infoMusicButtonPadding.top(), size, size);
 		p.drawPixmap(coverRect, cover.pix);
 	}
+}
+
+QImage AyuMusicButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::RoundRectMask(
+		size(),
+		AyuUiSettings::dialogRadius(st::boxRadius));
 }
 
 int AyuMusicButton::resizeGetHeight(int newWidth) {

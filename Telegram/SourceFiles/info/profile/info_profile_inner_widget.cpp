@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 // AyuGram includes
 #include "ayu/ayu_settings.h"
+#include "ayu/ayu_ui_settings.h"
 #include "settings/settings_tiles.h"
 #include "extera/extera_streamer.h"
 
@@ -87,94 +88,155 @@ constexpr auto kMembersInlineMax = 5;
 	}) | rpl::take(1);
 }
 
-void AddSavedMusic(
+void AddMusicAndWallet(
 		not_null<Ui::VerticalLayout*> layout,
 		not_null<Controller*> controller,
-		not_null<PeerData*> peer,
-		rpl::producer<std::optional<QColor>> topBarColor) {
-	const auto wrap = layout->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			layout,
-			object_ptr<Ui::VerticalLayout>(layout)));
-	wrap->toggleOn(
-		Info::Saved::SetupSavedMusic(
-			wrap->entity(),
-			controller,
-			peer,
-			std::move(topBarColor)),
-		anim::type::instant);
-}
-
-void AddWalletBlock(
-		not_null<Ui::VerticalLayout*> layout,
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> user,
+		not_null<PeerData*> musicPeer,
+		UserData *walletUser,
 		rpl::producer<std::optional<QColor>> topBarColor) {
 	const auto padding = st::infoMusicButtonPadding;
-	const auto wrap = layout->add(
-		object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
-			layout,
-			object_ptr<Ui::RpWidget>(layout)),
-		style::margins(padding.left(), 0, padding.left(), padding.left()));
-	const auto block = wrap->entity();
-	block->resize(
-		0,
-		padding.top() + st::infoProfileBalancePillHeight + padding.bottom());
+	const auto side = padding.left();
+	const auto skip = padding.top();
 
-	const auto edge = block->lifetime().make_state<
-		std::optional<QColor>>();
-	const auto pill = Ui::CreateChild<BalancePill>(
-		block,
-		user,
-		rpl::duplicate(topBarColor));
-	pill->setFlat(true);
-	pill->setOpacity(1.);
-	pill->setClickedCallback([=] {
-		Wallet::ShowCardView(controller, user, pill);
-	});
+	struct State {
+		rpl::variable<bool> hasMusic;
+		rpl::variable<bool> hasWallet;
+		std::optional<QColor> edge;
+		int walletNatural = 0;
+		bool relaying = false;
+	};
+	const auto row = layout->add(object_ptr<Ui::RpWidget>(layout));
+	const auto state = row->lifetime().make_state<State>();
+	const auto music = Ui::CreateChild<Ui::VerticalLayout>(row);
+	const auto showMusic = !(musicPeer->isSelf()
+		&& Extera::Streamer::HideProfile());
+	if (showMusic) {
+		state->hasMusic = Info::Saved::SetupSavedMusic(
+			music,
+			controller,
+			musicPeer,
+			rpl::duplicate(topBarColor));
+	}
+
+	Ui::RpWidget *wallet = nullptr;
+	if (walletUser) {
+		wallet = Ui::CreateChild<Ui::RpWidget>(row);
+		wallet->hide();
+		const auto pill = Ui::CreateChild<BalancePill>(
+			wallet,
+			walletUser,
+			rpl::duplicate(topBarColor));
+		pill->setFlat(true);
+		pill->setOpacity(1.);
+		const auto window = controller->parentController();
+		const auto open = [=] {
+			Wallet::ShowCardView(window, walletUser, pill);
+		};
+		pill->setClickedCallback(open);
+		wallet->setCursor(style::cur_pointer);
+		wallet->events() | rpl::filter([=](not_null<QEvent*> e) {
+			return e->type() == QEvent::MouseButtonRelease
+				&& static_cast<QMouseEvent*>(e.get())->button()
+					== Qt::LeftButton;
+		}) | rpl::on_next([=] {
+			open();
+		}, wallet->lifetime());
+
+		wallet->paintRequest() | rpl::on_next([=] {
+			auto p = QPainter(wallet);
+			auto hq = PainterHighQualityEnabler(p);
+			const auto radius = float64(
+				AyuUiSettings::dialogRadius(st::boxRadius));
+			p.setPen(Qt::NoPen);
+			p.setBrush(state->edge
+				? Ui::BlendColors(
+					*state->edge,
+					Qt::black,
+					st::infoProfileTopBarActionButtonBgOpacity)
+				: st::shadowFg->c);
+			p.drawRoundedRect(QRectF(wallet->rect()), radius, radius);
+		}, wallet->lifetime());
+
+		pill->naturalWidthValue() | rpl::on_next([=](int width) {
+			state->walletNatural = width;
+			row->resizeToWidth(row->width());
+		}, wallet->lifetime());
+		wallet->sizeValue() | rpl::on_next([=](QSize size) {
+			pill->resizeToNaturalWidth(size.width() - 2 * 6);
+			if (pill->fittedWidth() < pill->width()) {
+				pill->resizeToWidth(pill->fittedWidth());
+			}
+			pill->move(
+				(size.width() - pill->width()) / 2,
+				(size.height() - pill->height()) / 2);
+		}, wallet->lifetime());
+
+		state->hasWallet = walletUser->session().changes().peerFlagsValue(
+			walletUser,
+			Data::PeerUpdate::Flag::WalletCard
+		) | rpl::map([=] {
+			const auto card = walletUser->walletCard();
+			return card && (card->balance > 0);
+		}) | rpl::distinct_until_changed();
+	}
+
+	const auto relayout = [=] {
+		const auto width = row->width();
+		const auto hasMusic = state->hasMusic.current();
+		const auto hasWallet = wallet && state->hasWallet.current();
+		const auto walletWidth = hasWallet
+			? std::min(
+				state->walletNatural + 2 * side,
+				std::max(width / 2 - side, 0))
+			: 0;
+		const auto musicWidth = width
+			- (hasWallet && hasMusic ? (walletWidth + side) : 0);
+		music->resizeToWidth(musicWidth);
+		music->move(0, 0);
+		const auto musicHeight = hasMusic ? music->height() : 0;
+		const auto walletHeight = (hasMusic
+			? std::max(musicHeight - skip - side, 0)
+			: (padding.top()
+				+ st::infoProfileBalancePillHeight
+				+ padding.bottom()));
+		if (wallet) {
+			wallet->setVisible(hasWallet);
+			if (hasWallet) {
+				const auto fullWidth = hasMusic
+					? walletWidth
+					: (width - 2 * side);
+				wallet->setGeometry(
+					hasMusic ? (width - side - walletWidth) : side,
+					skip,
+					fullWidth,
+					walletHeight);
+			}
+		}
+		const auto height = hasMusic
+			? musicHeight
+			: hasWallet
+			? (skip + walletHeight + side)
+			: 0;
+		row->resize(width, height);
+	};
+	row->widthValue() | rpl::on_next([=](int) {
+		relayout();
+	}, row->lifetime());
+	rpl::merge(
+		state->hasMusic.value() | rpl::to_empty,
+		state->hasWallet.value() | rpl::to_empty,
+		music->heightValue() | rpl::to_empty
+	) | rpl::on_next([=] {
+		relayout();
+	}, row->lifetime());
 
 	std::move(topBarColor) | rpl::on_next([=](
 			std::optional<QColor> color) {
-		*edge = color;
-		block->update();
-	}, block->lifetime());
-	block->paintRequest() | rpl::on_next([=] {
-		auto p = QPainter(block);
-		auto hq = PainterHighQualityEnabler(p);
-		const auto radius = float64(st::boxRadius);
-		p.setPen(Qt::NoPen);
-		p.setBrush(*edge
-			? Ui::BlendColors(
-				**edge,
-				Qt::black,
-				st::infoProfileTopBarActionButtonBgOpacity)
-			: st::shadowFg->c);
-		p.drawRoundedRect(QRectF(block->rect()), radius, radius);
-	}, block->lifetime());
-
-	rpl::merge(
-		block->widthValue() | rpl::to_empty,
-		pill->naturalWidthValue() | rpl::to_empty
-	) | rpl::on_next([=] {
-		const auto width = block->width();
-		pill->resizeToNaturalWidth(
-			std::max(width - padding.left() - padding.right(), 0));
-		const auto fitted = pill->fittedWidth();
-		if (fitted < pill->width()) {
-			pill->resizeToWidth(fitted);
+		state->edge = color;
+		if (wallet) {
+			wallet->update();
 		}
-		pill->move((width - pill->width()) / 2, padding.top());
-	}, block->lifetime());
-
-	wrap->toggleOn(
-		user->session().changes().peerFlagsValue(
-			user,
-			Data::PeerUpdate::Flag::WalletCard
-		) | rpl::map([=] {
-			const auto card = user->walletCard();
-			return card && (card->balance > 0);
-		}) | rpl::distinct_until_changed(),
-		anim::type::instant);
+	}, row->lifetime());
 }
 
 void AddUnofficialSecurityRiskWarning(
@@ -274,19 +336,15 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		const auto musicPeer = _sublist
 			? _sublist->sublistPeer().get()
 			: _peer.get();
-		AddSavedMusic(
+		AddMusicAndWallet(
 			result.data(),
 			_controller,
 			musicPeer,
+			(_peer->asUser() && !_topic)
+				? _peer->asUser()
+				: nullptr,
 			_topBarColor.value());
 		if (const auto user = _peer->asUser()) {
-			if (!_topic) {
-				AddWalletBlock(
-					result.data(),
-					_controller->parentController(),
-					user,
-					_topBarColor.value());
-			}
 			AddUnofficialSecurityRiskWarning(result.data(), user);
 		}
 	}

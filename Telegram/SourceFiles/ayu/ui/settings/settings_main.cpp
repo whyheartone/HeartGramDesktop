@@ -167,6 +167,17 @@ void BuildLinks(SectionBuilder &builder) {
 		},
 	});
 
+	builder.addButton({
+		.id = u"heartgram/repository"_q,
+		.title = rpl::single(Extera::Text(u"Репозиторий"_q, u"Repository"_q)),
+		.icon = { &st::menuIconIpAddress },
+		.label = rpl::single(QString("GitHub")),
+		.onClick = [=] {
+			QDesktopServices::openUrl(
+				QString("https://github.com/whyheartone/HeartGramDesktop"));
+		},
+	});
+
 	if (!HeartGram::IsLite()) {
 		builder.addSkip();
 		builder.addSubsectionTitle(rpl::single(Extera::Text(

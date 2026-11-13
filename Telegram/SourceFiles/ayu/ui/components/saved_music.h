@@ -45,6 +45,7 @@ private:
 
 	void paintEvent(QPaintEvent *e) override;
 	int resizeGetHeight(int newWidth) override;
+	QImage prepareRippleMask() const override;
 
 	std::unique_ptr<Ui::FlatLabel> _performer;
 	std::unique_ptr<Ui::FlatLabel> _title;

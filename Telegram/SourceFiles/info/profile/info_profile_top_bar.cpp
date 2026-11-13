@@ -799,15 +799,20 @@ void TopBar::adjustColors(const std::optional<QColor> &edgeColor) {
 		? _verifiedSt.get()
 		: &st::infoColoredPeerBadge
 		: nullptr);
+	// WHY: tint HeartGram badges like the verified one, i.e. with a colour
+	// derived from the profile background, not with the neutral grey.
+	const auto tintedSt = [&]() -> const style::InfoPeerBadge* {
+		return _verifiedSt
+			? _verifiedSt.get()
+			: _badgeSt
+			? _badgeSt.get()
+			: &st::infoColoredPeerBadge;
+	};
 	_exteraBadge->setOverrideStyle((shouldOverrideBadges || edgeColor)
-		? _badgeSt
-		? _badgeSt.get()
-		: &st::infoColoredPeerBadge
+		? tintedSt()
 		: nullptr);
 	_projectBadge->setOverrideStyle((shouldOverrideBadges || edgeColor)
-		? _badgeSt
-		? _badgeSt.get()
-		: &st::infoColoredPeerBadge
+		? tintedSt()
 		: nullptr);
 
 	if (_starsRating) {
