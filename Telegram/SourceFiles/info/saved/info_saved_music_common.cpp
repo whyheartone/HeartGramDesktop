@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ayu/ui/components/saved_music.h"
 #include "ayu/utils/telegram_helpers.h"
 #include "data/data_document.h"
+#include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 #include "ui/widgets/popup_menu.h"
 
