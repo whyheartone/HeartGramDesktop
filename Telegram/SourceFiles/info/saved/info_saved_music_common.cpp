@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ayu/utils/telegram_helpers.h"
 #include "data/data_document.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "ui/widgets/popup_menu.h"
 
@@ -114,7 +115,7 @@ rpl::producer<bool> SetupSavedMusic(
 		// row does not collapse and reopen as a hole while a cover loads.
 		auto olds = std::make_shared<std::vector<QPointer<QWidget>>>();
 		for (auto i = 0; i != divider->entity()->count(); ++i) {
-			olds->push_back(divider->entity()->widgetAt(i));
+			olds->push_back(QPointer<QWidget>(divider->entity()->widgetAt(i).get()));
 		}
 		const auto dropOlds = [=] {
 			for (const auto &old : *olds) {
