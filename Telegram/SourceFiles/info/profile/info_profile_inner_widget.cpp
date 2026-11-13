@@ -96,7 +96,7 @@ void AddMusicAndWallet(
 		UserData *walletUser,
 		rpl::producer<std::optional<QColor>> topBarColor) {
 	const auto padding = st::infoMusicButtonPadding;
-	const auto side = padding.left();
+	const auto side = Info::Saved::MusicRowSide();
 	const auto skip = padding.top();
 
 	struct State {
@@ -146,8 +146,7 @@ void AddMusicAndWallet(
 		wallet->paintRequest() | rpl::on_next([=] {
 			auto p = QPainter(wallet);
 			auto hq = PainterHighQualityEnabler(p);
-			const auto radius = float64(
-				AyuUiSettings::dialogRadius(st::boxRadius));
+			const auto radius = float64(Info::Saved::MusicRowRadius());
 			p.setPen(Qt::NoPen);
 			p.setBrush(state->edge
 					? (Ui::IsLightBackground(*state->edge)
@@ -155,7 +154,7 @@ void AddMusicAndWallet(
 							*state->edge,
 							Qt::black,
 							st::infoProfileTopBarActionButtonBgOpacity)
-						: Ui::BlendColors(*state->edge, Qt::white, 0.82))
+						: Ui::BlendColors(*state->edge, Qt::white, 0.14))
 					: st::shadowFg->c);
 			p.drawRoundedRect(QRectF(wallet->rect()), radius, radius);
 		}, wallet->lifetime());

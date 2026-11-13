@@ -326,7 +326,7 @@ void SectionStack::finalize() {
 				: buttons.empty()
 				? QRect()
 				: buttons.front().second;
-			const auto inset = style::ConvertScale(12);
+			const auto inset = side;
 const auto joined = (below || above);
 const auto left = joined ? (along.x() + side) : inset;
 const auto right = joined

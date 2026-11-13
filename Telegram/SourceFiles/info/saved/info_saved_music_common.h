@@ -28,6 +28,8 @@ struct MusicTag {
 };
 
 [[nodiscard]] int MusicRowBottomSkip();
+[[nodiscard]] int MusicRowSide();
+[[nodiscard]] int MusicRowRadius();
 
 rpl::producer<bool> SetupSavedMusic(
 	not_null<Ui::VerticalLayout*> container,

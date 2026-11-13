@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "logs.h"
 #include "lang_auto.h"
 #include "ayu/ayu_settings.h"
+#include "media/player/media_player_instance.h"
 #include "ayu/ayu_ui_settings.h"
 #include "ayu/ui/components/saved_music.h"
 #include "ayu/utils/telegram_helpers.h"
@@ -60,6 +61,18 @@ int MusicRowBottomSkip() {
 		: st::infoMusicButtonPadding.left();
 }
 
+int MusicRowSide() {
+	return AyuUiSettings::isMaterialSettings()
+		? style::ConvertScale(8)
+		: st::infoMusicButtonPadding.left();
+}
+
+int MusicRowRadius() {
+	return AyuUiSettings::isMaterialSettings()
+		? style::ConvertScale(18)
+		: AyuUiSettings::dialogRadius(st::boxRadius);
+}
+
 rpl::producer<bool> SetupSavedMusic(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Info::Controller*> controller,
@@ -90,22 +103,34 @@ rpl::producer<bool> SetupSavedMusic(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 
+	divider->toggle(false, anim::type::instant);
 	rpl::combine(
 		std::move(musicValue),
 		std::move(topBarColor)
 	) | rpl::on_next([=](
 			HistoryItem *item,
 			std::optional<QColor> color) {
-		while (divider->entity()->count()) {
-			delete divider->entity()->widgetAt(0);
+		// WHY: the previous button stays until the new one is ready, so the
+		// row does not collapse and reopen as a hole while a cover loads.
+		auto olds = std::make_shared<std::vector<QPointer<QWidget>>>();
+		for (auto i = 0; i != divider->entity()->count(); ++i) {
+			olds->push_back(divider->entity()->widgetAt(i));
 		}
+		const auto dropOlds = [=] {
+			for (const auto &old : *olds) {
+				if (const auto widget = old.data()) {
+					delete widget;
+				}
+			}
+			olds->clear();
+		};
 		auto shown = false;
 		LOG(("Music: update for peer %1, supported %2, item %3, list size %4.").arg(peer->id.value).arg(Data::SavedMusic::Supported(peer->id) ? 1 : 0).arg(item ? 1 : 0).arg(peer->owner().savedMusic().list(peer->id).size()));
 		if (item) {
 			if (const auto document = item->media()
 					? item->media()->document()
 					: nullptr) {
-				const auto side = st::infoMusicButtonPadding.left();
+				const auto side = MusicRowSide();
 				const auto skip = st::infoMusicButtonPadding.top();
 				auto musicButton = divider->entity()->add(object_ptr<Ui::SlideWrap<Profile::AyuMusicButton>>(
 					divider->entity(),
@@ -113,10 +138,7 @@ rpl::producer<bool> SetupSavedMusic(
 						divider->entity(),
 						DocumentMusicButtonData(document, item),
 						color,
-						[window = controller, peer]
-						{
-							LOG(("Music: button clicked."));
-							window->showSection(Info::Saved::MakeMusic(peer));
+						[] {
 						})),
 					style::margins(side, skip, side, MusicRowBottomSkip()));
 
@@ -124,42 +146,16 @@ rpl::producer<bool> SetupSavedMusic(
 				musicButton->ease = anim::easeOutCubic;
 				musicButton->setDuration(250);
 				musicButton->entity()->setAcceptBoth(true);
-				musicButton->entity()->clicks() | rpl::filter([=](Qt::MouseButton mouseButton)
-				{
-					return mouseButton == Qt::RightButton;
-				}) | rpl::on_next([=]
-										  {
-											  const auto &settings = AyuSettings::getInstance();
-
-											  const auto contextMenu = new Ui::PopupMenu(
-												  nullptr,
-												  st::popupMenuWithIcons);
-											  contextMenu->setAttribute(Qt::WA_DeleteOnClose);
-
-											  contextMenu->addAction(
-												  settings.adaptiveCoverColor()
-													  ? tr::ayu_DisableColorfulCover(tr::now)
-													  : tr::ayu_EnableColorfulCover(tr::now),
-												  [=]
-												  {
-													  AyuSettings::getInstance().setAdaptiveCoverColor(!AyuSettings::getInstance().adaptiveCoverColor());
-
-													  const auto mediaRefreshed = item ? item->media() : nullptr;
-													  const auto documentRefreshed = mediaRefreshed
-														  ? mediaRefreshed->document()
-														  : nullptr;
-
-													  if (!documentRefreshed) {
-														  return;
-													  }
-													  musicButton->entity()->updateData(
-														  DocumentMusicButtonData(documentRefreshed, item));
-												  },
-												  &st::menuIconPalette);
-
-											  contextMenu->popup(QCursor::pos());
-										  },
-										  musicButton->lifetime());
+				// WHY: tap plays the track, right click opens the whole list.
+				musicButton->entity()->clicks(
+				) | rpl::on_next([=](Qt::MouseButton mouseButton) {
+					if (mouseButton == Qt::RightButton) {
+						controller->showSection(Info::Saved::MakeMusic(peer));
+					} else if (mouseButton == Qt::LeftButton) {
+						::Media::Player::instance()->playPause(
+							AudioMsgId(document, item->fullId()));
+					}
+				}, musicButton->lifetime());
 
 				const auto weak = base::make_weak(musicButton);
 				musicButton->entity()->onReady() | rpl::on_next(
@@ -170,7 +166,9 @@ rpl::producer<bool> SetupSavedMusic(
 							[=]
 							{
 								if (const auto strong = weak.get()) {
+									dropOlds();
 									strong->show(anim::type::normal);
+									divider->toggle(true, anim::type::normal);
 								}
 							},
 							st::widgetFadeDuration);
@@ -179,11 +177,12 @@ rpl::producer<bool> SetupSavedMusic(
 
 				shown = true;
 			}
-			divider->toggle(true, anim::type::normal);
+		}
+		if (!shown) {
+			dropOlds();
 		}
 		*hasMusic = shown;
 	}, container->lifetime());
-	divider->finishAnimating();
 
 	return hasMusic->value();
 }

@@ -73,16 +73,6 @@ void PaintSparks(QPainter &p, QPointF center, float64 size, QColor color) {
 	}
 }
 
-void PaintBadgeChip(not_null<QWidget*> widget, const QColor &fg) {
-	auto p = QPainter(widget);
-	auto hq = PainterHighQualityEnabler(p);
-	const auto rect = QRectF(widget->rect());
-	const auto radius = std::min(rect.width(), rect.height()) / 2.;
-	p.setPen(Qt::NoPen);
-	p.setBrush(anim::with_alpha(fg, 0.2));
-	p.drawRoundedRect(rect, radius, radius);
-}
-
 [[nodiscard]] bool HasPremiumClick(const Badge::Content &content) {
 	return content.badge == BadgeType::Premium
 		|| (content.badge == BadgeType::Verified && content.emojiStatusId)
@@ -204,9 +194,6 @@ void Badge::setContent(Content content) {
 		_view->resize(width, height);
 		_view->paintRequest(
 		) | rpl::on_next([=, check = _view.data()]{
-			if (_overrideSt) {
-				PaintBadgeChip(check, _overrideSt->premiumFg->c);
-			}
 			if (_emojiStatus) {
 				auto args = Ui::Text::CustomEmoji::Context{
 					.textColor = style.premiumFg->c,
@@ -286,9 +273,6 @@ void Badge::setContent(Content content) {
 			icon->height());
 		_view->paintRequest(
 		) | rpl::on_next([=, check = _view.data()]{
-			if (_overrideSt) {
-				PaintBadgeChip(check, _overrideSt->premiumFg->c);
-			}
 			Painter p(check);
 			if (_overrideSt) {
 				icon->paint(p, skip, 0, check->width(), _overrideSt->premiumFg->c);

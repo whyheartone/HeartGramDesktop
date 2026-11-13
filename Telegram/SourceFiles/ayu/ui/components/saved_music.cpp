@@ -5,6 +5,7 @@
 //
 // Copyright @Radolyn, 2026
 #include "ayu/ui/components/saved_music.h"
+#include "info/saved/info_saved_music_common.h"
 
 #include "logs.h"
 #include "ayu/ayu_settings.h"
@@ -66,7 +67,7 @@ QColor GetNoCoverBgColor(std::optional<QColor> overrideBg) {
 				*overrideBg,
 				Qt::black,
 				st::infoProfileTopBarActionButtonBgOpacity)
-			: Ui::BlendColors(*overrideBg, Qt::white, 0.82);
+			: Ui::BlendColors(*overrideBg, Qt::white, 0.14);
 	}
 
 	return st::shadowFg->c;
@@ -340,7 +341,7 @@ void AyuMusicButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	auto hq = PainterHighQualityEnabler(p);
 
-	const auto radius = float64(AyuUiSettings::dialogRadius(st::boxRadius));
+	const auto radius = float64(Info::Saved::MusicRowRadius());
 
 	const auto &font = st::infoMusicButtonTitle.style.font;
 	const auto skip = st::normalFont->spacew / 2;
@@ -370,7 +371,7 @@ void AyuMusicButton::paintEvent(QPaintEvent *e) {
 QImage AyuMusicButton::prepareRippleMask() const {
 	return Ui::RippleAnimation::RoundRectMask(
 		size(),
-		AyuUiSettings::dialogRadius(st::boxRadius));
+		Info::Saved::MusicRowRadius());
 }
 
 int AyuMusicButton::resizeGetHeight(int newWidth) {
