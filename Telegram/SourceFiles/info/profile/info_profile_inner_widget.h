@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_section_stack.h"
 #include "ui/rp_widget.h"
 
+class UserData;
+class PeerData;
+
 namespace Data {
 class ForumTopic;
 class SavedSublist;
@@ -41,6 +44,13 @@ class Members;
 class TabsHost;
 class TopBar;
 struct Origin;
+
+void AddMusicAndWalletRow(
+	not_null<Ui::VerticalLayout*> layout,
+	not_null<Controller*> controller,
+	not_null<PeerData*> musicPeer,
+	UserData *walletUser,
+	rpl::producer<std::optional<QColor>> topBarColor);
 
 class InnerWidget final : public Ui::RpWidget {
 public:

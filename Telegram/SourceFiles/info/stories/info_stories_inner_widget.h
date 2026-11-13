@@ -168,6 +168,7 @@ private:
 	rpl::variable<int> _topHeight;
 	rpl::variable<bool> _albumEmpty;
 
+	rpl::variable<std::optional<QColor>> _topBarColor;
 	rpl::variable<bool> _backToggles;
 	rpl::event_stream<> _backClicks;
 	rpl::event_stream<> _showFinished;

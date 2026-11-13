@@ -150,11 +150,13 @@ void AddMusicAndWallet(
 				AyuUiSettings::dialogRadius(st::boxRadius));
 			p.setPen(Qt::NoPen);
 			p.setBrush(state->edge
-				? Ui::BlendColors(
-					*state->edge,
-					Qt::black,
-					st::infoProfileTopBarActionButtonBgOpacity)
-				: st::shadowFg->c);
+					? (Ui::IsLightBackground(*state->edge)
+						? Ui::BlendColors(
+							*state->edge,
+							Qt::black,
+							st::infoProfileTopBarActionButtonBgOpacity)
+						: Ui::BlendColors(*state->edge, Qt::white, 0.82))
+					: st::shadowFg->c);
 			p.drawRoundedRect(QRectF(wallet->rect()), radius, radius);
 		}, wallet->lifetime());
 
@@ -291,6 +293,20 @@ void AddUnofficialSecurityRiskWarning(
 }
 
 } // namespace
+
+void AddMusicAndWalletRow(
+		not_null<Ui::VerticalLayout*> layout,
+		not_null<Controller*> controller,
+		not_null<PeerData*> musicPeer,
+		UserData *walletUser,
+		rpl::producer<std::optional<QColor>> topBarColor) {
+	AddMusicAndWallet(
+		layout,
+		controller,
+		musicPeer,
+		walletUser,
+		std::move(topBarColor));
+}
 
 InnerWidget::InnerWidget(
 	QWidget *parent,

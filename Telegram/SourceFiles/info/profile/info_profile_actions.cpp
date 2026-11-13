@@ -2425,10 +2425,13 @@ Section DetailsFiller::makePersonalChannel(not_null<UserData*> user) {
 							rpl::single(item->history()->peer->asChannel())),
 						st::infoLabel),
 					QMargins(
-						st::infoProfilePersonalChannelPadding.left(),
-						0,
-						st::infoProfilePersonalChannelPadding.right(),
-						st::infoProfilePersonalChannelPadding.bottom()));
+							st::infoProfilePersonalChannelPadding.left(),
+							0,
+							st::infoProfilePersonalChannelPadding.right(),
+							st::infoProfilePersonalChannelPadding.bottom()
+								+ (AyuUiSettings::isMaterialSettings()
+									? style::ConvertScale(5)
+									: 0)));
 			}
 			{
 				const auto button = Ui::CreateSimpleRectButton(

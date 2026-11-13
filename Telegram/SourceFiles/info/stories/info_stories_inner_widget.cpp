@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_actions.h"
+#include "info/profile/info_profile_inner_widget.h"
+#include "extera/extera_streamer.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_section_stack.h"
 #include "info/profile/info_profile_top_bar.h"
@@ -305,6 +307,16 @@ void InnerWidget::createProfileTop() {
 	startTop();
 
 	using namespace Profile;
+	if (const auto user = _peer->asUser()) {
+		if (!Extera::Streamer::HideProfile()) {
+			AddMusicAndWalletRow(
+				_top.data(),
+				_controller,
+				user,
+				user,
+				_topBarColor.value());
+		}
+	}
 	auto stack = SectionStack(_top);
 	BuildProfileDetailsSections(
 		stack,
@@ -529,6 +541,7 @@ base::weak_qptr<Ui::RpWidget> InnerWidget::createPinnedToTop(
 				controller->showSection(Info::Saved::MakeMusic(peer));
 			},
 		});
+	_topBarColor = content->edgeColor();
 	content->backRequest(
 	) | rpl::start_to_stream(_backClicks, content->lifetime());
 	return base::make_weak(not_null<Ui::RpWidget*>{ content });

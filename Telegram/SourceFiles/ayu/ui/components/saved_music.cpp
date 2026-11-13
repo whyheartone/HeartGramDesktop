@@ -22,6 +22,7 @@
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "ui/painter.h"
+#include "ui/color_contrast.h"
 #include "ui/effects/ripple_animation.h"
 #include "ayu/ayu_ui_settings.h"
 #include "ui/ui_utility.h"
@@ -60,10 +61,12 @@ QRgb BlendARGB(QRgb color1, QRgb color2, float ratio) {
 
 QColor GetNoCoverBgColor(std::optional<QColor> overrideBg) {
 	if (overrideBg) {
-		return Ui::BlendColors(
-			*overrideBg,
-			Qt::black,
-			st::infoProfileTopBarActionButtonBgOpacity);
+		return Ui::IsLightBackground(*overrideBg)
+			? Ui::BlendColors(
+				*overrideBg,
+				Qt::black,
+				st::infoProfileTopBarActionButtonBgOpacity)
+			: Ui::BlendColors(*overrideBg, Qt::white, 0.82);
 	}
 
 	return st::shadowFg->c;
