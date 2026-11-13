@@ -6,6 +6,7 @@
 // Copyright @Radolyn, 2026
 #include "ayu/ui/components/saved_music.h"
 
+#include "logs.h"
 #include "ayu/ayu_settings.h"
 #include "ayu/ui/utils/color_utils.h"
 #include "ayu/ui/utils/itunes_search.h"
@@ -288,6 +289,7 @@ void AyuMusicButton::makeCover() {
 				}
 			}
 
+			LOG(("Music: cover ready, noCover %1.").arg(cover.noCover ? 1 : 0));
 			crl::on_main([weak, cover = std::move(cover), bgColor, overrideBg]() mutable
 			{
 				const auto strong = weak.get();
@@ -327,6 +329,11 @@ void AyuMusicButton::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	static auto paints = 0;
+	if (paints < 6) {
+		++paints;
+		LOG(("Music: paint button %1x%2, noCover %3.").arg(width()).arg(height()).arg(_currentCover->noCover ? 1 : 0));
+	}
 	auto p = Painter(this);
 	auto hq = PainterHighQualityEnabler(p);
 

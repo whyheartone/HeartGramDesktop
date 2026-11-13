@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_top_bar.h"
+#include "logs.h"
 
 #include "api/api_peer_colors.h"
 #include "api/api_peer_photo.h"
@@ -784,6 +785,7 @@ void TopBar::adjustColors(const std::optional<QColor> &edgeColor) {
 
 	const auto shouldOverrideBadges = shouldOverride(
 		st::infoBotVerifyBadge.premiumFg);
+	LOG(("Badges: adjustColors edge %1, override %2, verifiedSt %3, badgeSt %4.").arg(edgeColor ? edgeColor->name() : QString("none")).arg(shouldOverrideBadges ? 1 : 0).arg(_verifiedSt ? 1 : 0).arg(_badgeSt ? 1 : 0));
 	_botVerify->setOverrideStyle(shouldOverrideBadges
 		? _botVerifySt
 		? _botVerifySt.get()

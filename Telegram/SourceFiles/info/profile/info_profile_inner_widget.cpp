@@ -64,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 
 // AyuGram includes
+#include "logs.h"
 #include "ayu/ayu_settings.h"
 #include "ayu/ayu_ui_settings.h"
 #include "settings/settings_tiles.h"
@@ -180,10 +181,16 @@ void AddMusicAndWallet(
 		}) | rpl::distinct_until_changed();
 	}
 
+	LOG(("Profile: row created, peer %1, self %2, showMusic %3, wallet %4.").arg(musicPeer->id.value).arg(musicPeer->isSelf() ? 1 : 0).arg(showMusic ? 1 : 0).arg(walletUser ? 1 : 0));
 	const auto relayout = [=] {
 		const auto width = row->width();
 		const auto hasMusic = state->hasMusic.current();
 		const auto hasWallet = wallet && state->hasWallet.current();
+		static auto relayouts = 0;
+		if (relayouts < 40) {
+			++relayouts;
+			LOG(("Profile: relayout width %1, music %2 (h %3), wallet %4 (natural %5).").arg(width).arg(hasMusic ? 1 : 0).arg(music->height()).arg(hasWallet ? 1 : 0).arg(state->walletNatural));
+		}
 		const auto walletWidth = hasWallet
 			? std::min(
 				state->walletNatural + 2 * side,

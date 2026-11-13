@@ -1525,6 +1525,11 @@ void HistoryInner::startEffectOnRead(not_null<HistoryItem*> item) {
 void HistoryInner::paintEvent(QPaintEvent *e) {
 	const auto overlapped = _controller->contentOverlapped(this, e);
 	const auto pendingResized = hasPendingResizedItems();
+	static auto paintLogs = 0;
+	if (paintLogs < 8) {
+		++paintLogs;
+		LOG(("AnimatedMessages: paintEvent, overlapped %1, pendingResized %2, clip %3x%4.").arg(overlapped ? 1 : 0).arg(pendingResized ? 1 : 0).arg(e->rect().width()).arg(e->rect().height()));
+	}
 	_readMetricsTracker->setScreenActive(!overlapped
 		&& !pendingResized
 		&& _widget->markingContentsRead());

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 
 // AyuGram includes
+#include "logs.h"
 #include "lang_auto.h"
 #include "ayu/ayu_settings.h"
 #include "ayu/ui/components/saved_music.h"
@@ -92,6 +93,7 @@ rpl::producer<bool> SetupSavedMusic(
 			delete divider->entity()->widgetAt(0);
 		}
 		auto shown = false;
+		LOG(("Music: update for peer %1, supported %2, item %3, list size %4.").arg(peer->id.value).arg(Data::SavedMusic::Supported(peer->id) ? 1 : 0).arg(item ? 1 : 0).arg(peer->owner().savedMusic().list(peer->id).size()));
 		if (item) {
 			if (const auto document = item->media()
 					? item->media()->document()
@@ -106,6 +108,7 @@ rpl::producer<bool> SetupSavedMusic(
 						color,
 						[window = controller, peer]
 						{
+							LOG(("Music: button clicked."));
 							window->showSection(Info::Saved::MakeMusic(peer));
 						})),
 					style::margins(side, skip, side, side));
