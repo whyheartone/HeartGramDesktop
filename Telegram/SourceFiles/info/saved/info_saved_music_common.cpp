@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "logs.h"
 #include "lang_auto.h"
 #include "ayu/ayu_settings.h"
+#include "ayu/ayu_ui_settings.h"
 #include "ayu/ui/components/saved_music.h"
 #include "ayu/utils/telegram_helpers.h"
 #include "data/data_document.h"
@@ -52,6 +53,12 @@ namespace {
 }
 
 } // namespace
+
+int MusicRowBottomSkip() {
+	return AyuUiSettings::isMaterialSettings()
+		? style::ConvertScale(2)
+		: st::infoMusicButtonPadding.left();
+}
 
 rpl::producer<bool> SetupSavedMusic(
 		not_null<Ui::VerticalLayout*> container,
@@ -111,7 +118,7 @@ rpl::producer<bool> SetupSavedMusic(
 							LOG(("Music: button clicked."));
 							window->showSection(Info::Saved::MakeMusic(peer));
 						})),
-					style::margins(side, skip, side, side));
+					style::margins(side, skip, side, MusicRowBottomSkip()));
 
 				musicButton->hide(anim::type::instant);
 				musicButton->ease = anim::easeOutCubic;

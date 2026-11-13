@@ -326,18 +326,20 @@ void SectionStack::finalize() {
 				: buttons.empty()
 				? QRect()
 				: buttons.front().second;
-			const auto left = along.isNull() ? side : (along.x() + side);
-			const auto right = along.isNull()
-				? (layout->width() - side)
-				: (along.x() + along.width() - side);
+			const auto inset = style::ConvertScale(12);
+const auto joined = (below || above);
+const auto left = joined ? (along.x() + side) : inset;
+const auto right = joined
+? (along.x() + along.width() - side)
+: (layout->width() - inset);
 			const auto top = above
 				? (aboveRect.y() + aboveRect.height() + join / 2)
 				: std::max(
-					blockTop + style::ConvertScale(3),
+					blockTop + style::ConvertScale(5),
 					style::ConvertScale(7));
 			const auto bottom = below
 				? (belowRect.y() - join / 2)
-				: (blockBottom + extend - style::ConvertScale(3));
+				: (blockBottom + extend - style::ConvertScale(5));
 			const auto r = QRectF(left, top, right - left, bottom - top);
 			if (r.width() <= 0 || r.height() <= 0) {
 				continue;

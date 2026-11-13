@@ -204,7 +204,7 @@ void AddMusicAndWallet(
 		music->move(0, 0);
 		const auto musicHeight = hasMusic ? music->height() : 0;
 		const auto walletHeight = (hasMusic
-			? std::max(musicHeight - skip - side, 0)
+			? std::max(musicHeight - skip - Info::Saved::MusicRowBottomSkip(), 0)
 			: (padding.top()
 				+ st::infoProfileBalancePillHeight
 				+ padding.bottom()));
@@ -224,7 +224,7 @@ void AddMusicAndWallet(
 		const auto height = hasMusic
 			? musicHeight
 			: hasWallet
-			? (skip + walletHeight + side)
+			? (skip + walletHeight + Info::Saved::MusicRowBottomSkip())
 			: 0;
 		row->resize(width, height);
 	};

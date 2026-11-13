@@ -27,6 +27,8 @@ struct MusicTag {
 	not_null<PeerData*> peer;
 };
 
+[[nodiscard]] int MusicRowBottomSkip();
+
 rpl::producer<bool> SetupSavedMusic(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Info::Controller*> controller,

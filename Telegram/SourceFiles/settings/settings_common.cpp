@@ -535,9 +535,11 @@ void CreateRightLabel(
 		name->moveToRight(
 			st::settingsButtonRightSkip,
 			(sideBySide
-				? (st.padding.top()
-					+ AyuUiSettings::settingsRowExtra()
-					+ (button->height() - single) / 2)
+				? (AyuUiSettings::isMaterialSettings()
+? ((button->height() - name->height()) / 2)
+: (st.padding.top()
++ AyuUiSettings::settingsRowExtra()
++ (button->height() - single) / 2))
 				: (button->height() - st.padding.bottom() - name->height())));
 	};
 	if (v::text::is_plain(label)) {
