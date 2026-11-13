@@ -19,6 +19,7 @@
 #include "main/main_session_settings.h"
 #include "styles/palette.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/image/image.h"

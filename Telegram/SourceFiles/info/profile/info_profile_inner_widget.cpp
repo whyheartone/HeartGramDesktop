@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "styles/style_info.h"
 #include "styles/style_info_profile_top_bar.h"
+#include "styles/style_layers.h"
 
 // AyuGram includes
 #include "ayu/ayu_settings.h"
