@@ -444,12 +444,14 @@ HistoryInner::HistoryInner(
 	Assert(_theme != nullptr);
 
 	setAttribute(Qt::WA_AcceptTouchEvents);
+	LOG(("AnimatedMessages: HistoryInner created for peer %1.").arg(_peer->id.value));
 	Extera::AnimatedMessages::NoteOpened();
 	_extraAnimation.init([=](crl::time) {
 		// WHY: other parts of the chat repaint on their own (clock, typing,
 		// reactions); such a paint has no animated row in it, so the loop
 		// lives until the animations end, not until one paint misses them.
 		if (!Extera::AnimatedMessages::Running()) {
+			LOG(("AnimatedMessages: loop finished."));
 			_extraSnapshots.clear();
 			_extraAnimatedRect = QRect();
 			update();
@@ -1526,7 +1528,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	const auto overlapped = _controller->contentOverlapped(this, e);
 	const auto pendingResized = hasPendingResizedItems();
 	static auto paintLogs = 0;
-	if (paintLogs < 8) {
+	if (paintLogs < 60) {
 		++paintLogs;
 		LOG(("AnimatedMessages: paintEvent, overlapped %1, pendingResized %2, clip %3x%4.").arg(overlapped ? 1 : 0).arg(pendingResized ? 1 : 0).arg(e->rect().width()).arg(e->rect().height()));
 	}
@@ -1619,12 +1621,15 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	auto animating = false;
 	auto animatedRect = QRect();
+	auto drawnViews = 0;
+	auto animatedViews = 0;
 	const auto drawAnimated = [&](not_null<Element*> view) {
 		static auto drawCalls = 0;
-		if (drawCalls < 4) {
+		if (drawCalls < 60) {
 			++drawCalls;
 			LOG(("AnimatedMessages: drawAnimated for %1.").arg(view->data()->id.bare));
 		}
+		++drawnViews;
 		const auto band = (view->displayDate() && !view->data()->isService())
 			? view->displayedDateHeight()
 			: 0;
@@ -1640,6 +1645,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			return;
 		}
 		animating = true;
+		++animatedViews;
 		// The message is drawn once into an image and only that image is
 		// moved and scaled while it animates, as Telegram's own reveal does.
 		auto &snapshot = _extraSnapshots[view->data()->fullId()];
@@ -2058,9 +2064,17 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	_replyButtonManager->paint(p, context);
 	_reactionsManager->paint(p, context);
+	{
+		static auto endLogs = 0;
+		if (endLogs < 60) {
+			++endLogs;
+			LOG(("AnimatedMessages: paint done, views %1, animated %2, animating %3, loop running %4.").arg(drawnViews).arg(animatedViews).arg(animating ? 1 : 0).arg(_extraAnimation.animating() ? 1 : 0));
+		}
+	}
 	if (animating) {
 		_extraAnimatedRect = _extraAnimatedRect.united(animatedRect);
 		if (!_extraAnimation.animating()) {
+			LOG(("AnimatedMessages: loop started."));
 			_extraAnimation.start();
 		}
 	}

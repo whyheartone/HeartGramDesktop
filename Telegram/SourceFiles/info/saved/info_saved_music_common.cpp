@@ -151,6 +151,11 @@ rpl::producer<bool> SetupSavedMusic(
 				) | rpl::on_next([=](Qt::MouseButton mouseButton) {
 					if (mouseButton == Qt::RightButton) {
 						controller->showSection(Info::Saved::MakeMusic(peer));
+					} else if (mouseButton == Qt::MiddleButton) {
+						AyuSettings::getInstance().setAdaptiveCoverColor(
+							!AyuSettings::getInstance().adaptiveCoverColor());
+						musicButton->entity()->updateData(
+							DocumentMusicButtonData(document, item));
 					} else if (mouseButton == Qt::LeftButton) {
 						::Media::Player::instance()->playPause(
 							AudioMsgId(document, item->fullId()));

@@ -217,6 +217,7 @@ struct Profile {
 } // namespace
 
 void NoteOpened() {
+	LOG(("AnimatedMessages: NoteOpened, am_enabled %1, am_on_open %2, entries %3.").arg(Bool(u"am_enabled"_q) ? 1 : 0).arg(Bool(u"am_on_open"_q) ? 1 : 0).arg(int(Entries().size())));
 	OpenedAt = 0;
 	OpenedPending = true;
 	OpenedCount = 0;
@@ -261,7 +262,7 @@ Frames FramesFor(
 		QSize size,
 		int dateBand) {
 	static auto calls = 0;
-	if (calls < 6) {
+	if (calls < 80) {
 		++calls;
 		LOG(("AnimatedMessages: FramesFor %1, enabled %2, on_open %3.").arg(item->id.bare).arg(Bool(u"am_enabled"_q) ? 1 : 0).arg(Bool(u"am_on_open"_q) ? 1 : 0));
 	}
@@ -302,6 +303,13 @@ Frames FramesFor(
 		return {};
 	}
 	auto &e = i->second;
+	{
+		static auto framesLogs = 0;
+		if (framesLogs < 80) {
+			++framesLogs;
+			LOG(("AnimatedMessages: playing %1, style %2, started %3, delay %4, elapsed %5.").arg(item->id.bare).arg(e.style).arg(e.started ? 1 : 0).arg(int(e.delay)).arg(int(e.started ? crl::now() - e.start : 0)));
+		}
+	}
 	if (!e.started) {
 		e.started = true;
 		e.start = crl::now() + e.delay;
