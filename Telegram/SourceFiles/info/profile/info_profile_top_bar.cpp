@@ -799,12 +799,12 @@ void TopBar::adjustColors(const std::optional<QColor> &edgeColor) {
 		? _verifiedSt.get()
 		: &st::infoColoredPeerBadge
 		: nullptr);
-	_exteraBadge->setOverrideStyle(shouldOverrideBadges
+	_exteraBadge->setOverrideStyle((shouldOverrideBadges || edgeColor)
 		? _badgeSt
 		? _badgeSt.get()
 		: &st::infoColoredPeerBadge
 		: nullptr);
-	_projectBadge->setOverrideStyle(shouldOverrideBadges
+	_projectBadge->setOverrideStyle((shouldOverrideBadges || edgeColor)
 		? _badgeSt
 		? _badgeSt.get()
 		: &st::infoColoredPeerBadge

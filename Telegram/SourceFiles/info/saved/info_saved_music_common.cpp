@@ -108,7 +108,7 @@ rpl::producer<bool> SetupSavedMusic(
 						{
 							window->showSection(Info::Saved::MakeMusic(peer));
 						})),
-					style::margins(side, skip, side, skip));
+					style::margins(side, skip, side, side));
 
 				musicButton->hide(anim::type::instant);
 				musicButton->ease = anim::easeOutCubic;

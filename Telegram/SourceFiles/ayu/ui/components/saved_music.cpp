@@ -327,7 +327,7 @@ void AyuMusicButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	auto hq = PainterHighQualityEnabler(p);
 
-	const auto radius = height() / 2.;
+	const auto radius = float64(st::boxRadius);
 	auto pillClip = QPainterPath();
 	pillClip.addRoundedRect(QRectF(rect()), radius, radius);
 	p.setClipPath(pillClip);
@@ -346,6 +346,7 @@ void AyuMusicButton::paintEvent(QPaintEvent *e) {
 		gradient.setColorAt(0, cover.bg);
 		gradient.setColorAt(1, QColor::fromRgb(AdjustHsl(cover.bg.rgb(), 1.5f)));
 		p.fillRect(rect(), gradient);
+		paintRipple(p, QPoint());
 	}
 
 	if (!cover.pix.isNull()) {

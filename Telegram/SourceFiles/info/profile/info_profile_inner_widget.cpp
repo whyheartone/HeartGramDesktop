@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/new_badges.h"
 #include "ui/painter.h"
+#include "ui/color_contrast.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "styles/style_info.h"
@@ -113,7 +114,7 @@ void AddWalletBlock(
 		object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
 			layout,
 			object_ptr<Ui::RpWidget>(layout)),
-		style::margins(padding.left(), 0, padding.left(), padding.top()));
+		style::margins(padding.left(), 0, padding.left(), padding.left()));
 	const auto block = wrap->entity();
 	block->resize(
 		0,
@@ -139,9 +140,14 @@ void AddWalletBlock(
 	block->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(block);
 		auto hq = PainterHighQualityEnabler(p);
-		const auto radius = block->height() / 2.;
+		const auto radius = float64(st::boxRadius);
 		p.setPen(Qt::NoPen);
-		p.setBrush(ComputePillColors(*edge).fill);
+		p.setBrush(*edge
+			? Ui::BlendColors(
+				**edge,
+				Qt::black,
+				st::infoProfileTopBarActionButtonBgOpacity)
+			: st::shadowFg->c);
 		p.drawRoundedRect(QRectF(block->rect()), radius, radius);
 	}, block->lifetime());
 
