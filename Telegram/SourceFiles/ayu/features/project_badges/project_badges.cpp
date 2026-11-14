@@ -15,6 +15,7 @@
 #include "base/flat_map.h"
 #include "base/timer.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -685,6 +686,87 @@ namespace {
 
 } // namespace
 
+namespace {
+
+[[nodiscard]] bool IsNameChar(QChar c) {
+	return (c.isLetterOrNumber() && c.unicode() < 128) || (c == QChar('_'));
+}
+
+// WHY: custom badge texts come from the owner of the badge as **bold**,
+// [label](url), @username and plain links; a toast does not parse them
+// itself, so they are turned into entities here to be clickable.
+void AppendBadgeMarkup(TextWithEntities &result, const QString &text, bool allowLinks = true) {
+	auto i = 0;
+	const auto n = int(text.size());
+	const auto addLink = [&](const QString &label, const QString &url) {
+		const auto offset = int(result.text.size());
+		result.text.append(label);
+		result.entities.push_back(EntityInText(
+			EntityType::CustomUrl,
+			offset,
+			int(label.size()),
+			url));
+	};
+	while (i < n) {
+		const auto c = text[i];
+		if (c == QChar('*') && text.mid(i, 2) == u"**"_q) {
+			const auto end = text.indexOf(u"**"_q, i + 2);
+			if (end > i + 2) {
+				const auto offset = int(result.text.size());
+				AppendBadgeMarkup(result, text.mid(i + 2, end - i - 2), allowLinks);
+				result.entities.push_back(EntityInText(
+					EntityType::Bold,
+					offset,
+					int(result.text.size()) - offset));
+				i = end + 2;
+				continue;
+			}
+		} else if (allowLinks && c == QChar('[')) {
+			const auto mid = text.indexOf(u"]("_q, i + 1);
+			const auto end = (mid > 0) ? text.indexOf(')', mid + 2) : -1;
+			if (mid > i + 1 && end > mid + 2) {
+				auto url = text.mid(mid + 2, end - mid - 2).trimmed();
+				if (!url.contains(u"://"_q) && !url.startsWith(u"tg:"_q)) {
+					url.prepend(u"https://"_q);
+				}
+				addLink(text.mid(i + 1, mid - i - 1), url);
+				i = end + 1;
+				continue;
+			}
+		} else if (allowLinks && c == QChar('@')
+			&& (i == 0 || !IsNameChar(text[i - 1]))) {
+			auto end = i + 1;
+			while (end < n && IsNameChar(text[end])) {
+				++end;
+			}
+			if (end - i - 1 >= 4) {
+				const auto name = text.mid(i + 1, end - i - 1);
+				addLink(u"@"_q + name, u"https://t.me/"_q + name);
+				i = end;
+				continue;
+			}
+		} else if (allowLinks
+			&& (text.mid(i, 8) == u"https://"_q || text.mid(i, 7) == u"http://"_q)) {
+			auto end = i;
+			while (end < n && !text[end].isSpace()) {
+				++end;
+			}
+			auto url = text.mid(i, end - i);
+			while (!url.isEmpty() && QStringLiteral(".,;:!?)").contains(url.back())) {
+				url.chop(1);
+				--end;
+			}
+			addLink(url, url);
+			i = end;
+			continue;
+		}
+		result.text.append(c);
+		++i;
+	}
+}
+
+} // namespace
+
 void ShowAbout(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
@@ -743,8 +825,19 @@ void ShowAbout(
 	auto marked = QString(template_);
 	marked.replace(u"{name}"_q, u"**"_q + peer->name() + u"**"_q);
 	marked.replace(u"{project}"_q, u"**"_q + levelProject + u"**"_q);
+	auto markedText = TextWithEntities();
+	AppendBadgeMarkup(markedText, marked);
+	auto hasLinks = false;
+	for (const auto &entity : markedText.entities) {
+		if (entity.type() == EntityType::CustomUrl) {
+			hasLinks = true;
+		}
+	}
 	auto config = Ui::Toast::Config{
-		.text = tr::rich(marked),
+		.text = std::move(markedText),
+		.textContext = Core::TextContext({
+			.session = &controller->session(),
+		}),
 		.iconContent = HeartGramBadgeToastIcon(
 			peer,
 			Info::Profile::Badge::Content{
@@ -755,7 +848,7 @@ void ShowAbout(
 			}),
 		.st = &st::exteraBadgeToast,
 		.adaptive = true,
-		.duration = 4 * crl::time(1000),
+		.duration = (hasLinks ? 9 : 4) * crl::time(1000),
 	};
 	const auto toSupport = !hasCustom
 		&& (supporter || (level == u"owner"_q));
