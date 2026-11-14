@@ -76,6 +76,7 @@ public:
 
 	void setPremiumClickCallback(Fn<void()> callback);
 	void setOverrideStyle(const style::InfoPeerBadge *st);
+	void setTint(std::optional<QColor> tint);
 	[[nodiscard]] rpl::producer<> updated() const;
 	void move(int left, int top, int bottom);
 
@@ -88,6 +89,7 @@ private:
 	const not_null<QWidget*> _parent;
 	const style::InfoPeerBadge &_st;
 	const style::InfoPeerBadge *_overrideSt = nullptr;
+	std::optional<QColor> _tint;
 	const not_null<Main::Session*> _session;
 	EmojiStatusPanel *_emojiStatusPanel = nullptr;
 	const int _customStatusLoopsLimit = 0;

@@ -31,6 +31,7 @@
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 #include "ui/painter.h"
+#include "logs.h"
 #include "ui/gl/gl_shader.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/effects/animation_value.h"
@@ -146,6 +147,18 @@ constexpr auto kRewindTick = crl::time(16);
 		float64 down) {
 	const auto tau = (target > current) ? up : down;
 	return current + (target - current) * (1. - std::exp(-dt / tau));
+}
+
+// WHY: the same smooth falloff as the shader, sampled finely, so the blobs
+// have no visible rings where a coarse piecewise line changes its slope.
+void AddSmoothStops(QGradient &gradient, QColor color, float64 alpha) {
+	constexpr auto kSamples = 32;
+	for (auto i = 0; i <= kSamples; ++i) {
+		const auto x = float64(i) / kSamples;
+		const auto k = 1. - x * x * (3. - 2. * x);
+		color.setAlphaF(std::clamp(alpha * k, 0., 1.));
+		gradient.setColorAt(x, color);
+	}
 }
 
 // White masks of the exteraGram icons, tinted when drawn.
@@ -703,12 +716,8 @@ uniform float u_hasCover;
 uniform float u_live;
 
 float fall(float t) {
-	float s = clamp(t, 0., 1.) * 5.;
-	if (s < 1.) return mix(1., 0.88, s);
-	if (s < 2.) return mix(0.88, 0.6, s - 1.);
-	if (s < 3.) return mix(0.6, 0.32, s - 2.);
-	if (s < 4.) return mix(0.32, 0.12, s - 3.);
-	return mix(0.12, 0., s - 4.);
+	float x = clamp(t, 0., 1.);
+	return 1. - x * x * (3. - 2. * x);
 }
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -802,6 +811,7 @@ public:
 	}
 
 	void init(QOpenGLFunctions &f) override {
+		LOG(("Player: backdrop OpenGL init."));
 		_buffer.emplace();
 		_buffer->setUsagePattern(QOpenGLBuffer::StaticDraw);
 		_buffer->create();
@@ -1447,6 +1457,7 @@ void Screen::createBackdrop() {
 			backend = Ui::GL::Backend::Raster;
 		}
 	}
+	LOG(("Player: backdrop backend %1 (player_gpu %2).").arg(int(backend)).arg(Extera::Bool(u"player_gpu"_q) ? 1 : 0));
 	_backdrop = Ui::GL::CreateSurface(parentWidget(), Ui::GL::ChosenRenderer{
 		.renderer = std::make_unique<BackdropRenderer>(
 			[=] { return backdropState(); },
@@ -2742,7 +2753,7 @@ void Screen::paintLive(QPainter &p, const PlayerPalette &c) {
 void Screen::stepRhythm() {
 	const auto now = crl::now();
 	const auto dt = _rhythmLast
-		? std::clamp((now - _rhythmLast) / 1000., 0., 0.05)
+		? std::clamp((now - _rhythmLast) / 1000., 0., 0.12)
 		: 0.;
 	_rhythmLast = now;
 	const auto animating = rhythmActive();
@@ -2778,7 +2789,7 @@ void Screen::stepRhythm() {
 		high = state.high;
 		_targetIntensity = state.intensity;
 	}
-	_presence = Approach(_presence, animating ? 1. : 0., dt, 0.25, 0.25);
+	_presence = Approach(_presence, animating ? 1. : 0., dt, 0.25, 0.1);
 	_energy = Approach(_energy, energy, dt, 0.12, 0.35);
 	_bass = Approach(_bass, bass, dt, 0.04, 0.22);
 	_mid = Approach(_mid, mid, dt, 0.08, 0.3);
@@ -2821,8 +2832,6 @@ void Screen::paintRhythm(QPainter &p, const PlayerPalette &c) {
 	constexpr auto kRadius = std::array<float64, 4>{ 1.02, 0.94, 0.96, 0.86 };
 	constexpr auto kAlphaDark = std::array<float64, 4>{ 0.31, 0.26, 0.29, 0.23 };
 	constexpr auto kAlphaLight = std::array<float64, 4>{ 0.22, 0.19, 0.2, 0.16 };
-	constexpr auto kStops = std::array<float64, 6>{ 0., 0.2, 0.4, 0.6, 0.8, 1. };
-	constexpr auto kFalloff = std::array<float64, 6>{ 1., 0.88, 0.6, 0.32, 0.12, 0. };
 	const auto light = PlayerLightTheme();
 	// Drawn small and stretched: blobs are blurry anyway, so this is cheap.
 	const auto factor = 8;
@@ -2853,16 +2862,12 @@ void Screen::paintRhythm(QPainter &p, const PlayerPalette &c) {
 					+ _pulse * 0.08
 					+ _energy * 0.12) * (_intensity * 0.45 + 0.7)) * _presence;
 			auto gradient = QRadialGradient(QPointF(x, y), radius);
-			for (auto s = 0; s != 6; ++s) {
-				gradient.setColorAt(kStops[s], Alpha(c.glow[i], alpha * kFalloff[s]));
-			}
+			AddSmoothStops(gradient, c.glow[i], alpha);
 			q.fillRect(QRectF(0, 0, w, h), gradient);
 		}
 		if (_pulse > 0.003) {
 			auto gradient = QRadialGradient(QPointF(cx, cy), 0.7 * w * (1. + _pulse * 0.12));
-			for (auto s = 0; s != 6; ++s) {
-				gradient.setColorAt(kStops[s], Alpha(c.glow[0], _pulse * 0.14 * _presence * kFalloff[s]));
-			}
+			AddSmoothStops(gradient, c.glow[0], _pulse * 0.14 * _presence);
 			q.fillRect(QRectF(0, 0, w, h), gradient);
 		}
 	}

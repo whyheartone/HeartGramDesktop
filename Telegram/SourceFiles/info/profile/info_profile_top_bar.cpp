@@ -816,6 +816,15 @@ void TopBar::adjustColors(const std::optional<QColor> &edgeColor) {
 	_projectBadge->setOverrideStyle((shouldOverrideBadges || edgeColor)
 		? tintedSt()
 		: nullptr);
+	// WHY: our badges are drawn lighter than the background of the profile
+	// (a light shade of its own hue, or a dark one on a light profile).
+	const auto tint = edgeColor
+		? std::make_optional(Ui::IsLightBackground(*edgeColor)
+			? Ui::BlendColors(*edgeColor, Qt::black, 0.85)
+			: Ui::BlendColors(*edgeColor, Qt::white, 0.88))
+		: std::optional<QColor>();
+	_exteraBadge->setTint(tint);
+	_projectBadge->setTint(tint);
 
 	if (_starsRating) {
 		const auto shouldOverrideRating = shouldOverride(st::windowBgActive);

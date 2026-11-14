@@ -8,6 +8,7 @@
 
 #include "lang_auto.h"
 #include "ayu/utils/rc_manager.h"
+#include "core/click_handler_types.h"
 #include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "info/channel_statistics/earn/earn_icons.h"
@@ -107,7 +108,8 @@ object_ptr<Ui::RpWidget> InfoRow(
 	const QString &title,
 	const TextWithEntities &text,
 	not_null<const style::icon*> icon,
-	const Text::MarkedContext &context) {
+	const Text::MarkedContext &context,
+	Fn<void(not_null<Ui::VerticalLayout*>)> extra = nullptr) {
 	auto row = object_ptr<Ui::VerticalLayout>(parent);
 	const auto raw = row.data();
 
@@ -128,6 +130,9 @@ object_ptr<Ui::RpWidget> InfoRow(
 		text,
 		std::move(context)
 	);
+	if (extra) {
+		extra(raw);
+	}
 
 	object_ptr<Info::Profile::FloatingIcon>(
 		raw,
@@ -341,27 +346,30 @@ void FillProjectDonateInfoBox(
 	if (!username.startsWith('@')) {
 		username.prepend('@');
 	}
-	auto receiptLink = Ui::Text::Link(
-		username,
-		session->createInternalLinkFull(username.mid(1)));
-	receiptLink.entities.push_back(EntityInText(
-		EntityType::Bold,
-		0,
-		int(receiptLink.text.size())));
+	const auto receiptUrl = u"https://t.me/"_q + username.mid(1);
 	content->add(InfoRow(
 		content,
 		session,
 		Extera::Text(u"Отправить чек"_q, u"Send the receipt"_q),
 		TextWithEntities()
 			.append(Extera::Text(
-				u"Пришлите скриншот перевода в личные сообщения "_q,
-				u"Send a screenshot of the transfer in a private message to "_q))
-			.append(std::move(receiptLink))
-			.append(Extera::Text(
-				u". Должны быть видны сумма, дата и время."_q,
-				u". The amount, date and time must be visible."_q)),
+				u"Пришлите скриншот перевода в личные сообщения. Должны быть видны сумма, дата и время."_q,
+				u"Send a screenshot of the transfer in a private message. The amount, date and time must be visible."_q)),
 		&st::menuIconPhoto,
-		Core::TextContext({ .session = session })));
+		Core::TextContext({ .session = session }),
+		[=](not_null<Ui::VerticalLayout*> row) {
+			// WHY: a separate button always reacts to a click, the link
+			// inside the text did not for some users.
+			const auto link = row->add(
+				object_ptr<Ui::LinkButton>(
+					row,
+					username,
+					st::defaultLinkButton),
+				st::settingsPremiumRowAboutPadding);
+			link->setClickedCallback([=] {
+				UrlClickHandler::Open(receiptUrl);
+			});
+		}));
 	Ui::AddSkip(content);
 
 	content->add(InfoRow(

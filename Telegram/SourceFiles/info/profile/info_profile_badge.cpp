@@ -215,7 +215,7 @@ void Badge::setContent(Content content) {
 						emoji,
 						0,
 						check->width(),
-						_overrideSt->premiumFg->c);
+						(_tint ? *_tint : _overrideSt->premiumFg->c));
 				} else {
 					icon->paint(p, emoji, 0, check->width());
 				}
@@ -226,7 +226,7 @@ void Badge::setContent(Content content) {
 							emoji,
 							0,
 							check->width(),
-							_overrideSt->premiumFg->c);
+							(_tint ? *_tint : _overrideSt->premiumFg->c));
 					} else {
 						iconForeground->paint(p, emoji, 0, check->width());
 					}
@@ -275,7 +275,7 @@ void Badge::setContent(Content content) {
 		) | rpl::on_next([=, check = _view.data()]{
 			Painter p(check);
 			if (_overrideSt) {
-				icon->paint(p, skip, 0, check->width(), _overrideSt->premiumFg->c);
+				icon->paint(p, skip, 0, check->width(), (_tint ? *_tint : _overrideSt->premiumFg->c));
 			} else {
 				icon->paint(p, skip, 0, check->width());
 			}
@@ -335,6 +335,16 @@ void Badge::setPremiumClickCallback(Fn<void()> callback) {
 			_view->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 			_view->setClickedCallback(_premiumClickCallback);
 		}
+	}
+}
+
+void Badge::setTint(std::optional<QColor> tint) {
+	if (_tint == tint) {
+		return;
+	}
+	_tint = tint;
+	if (_view) {
+		_view->update();
 	}
 }
 
