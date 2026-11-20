@@ -3,6 +3,6 @@
 namespace Extera {
 
 // Our own build counter, shown after the Telegram Desktop version.
-inline constexpr auto kBuild = 122;
+inline constexpr auto kBuild = 123;
 
 } // namespace Extera

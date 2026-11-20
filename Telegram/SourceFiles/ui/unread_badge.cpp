@@ -245,6 +245,24 @@ PeerBadge::~PeerBadge() = default;
 
 int PeerBadge::drawGetWidth(Painter &p, Descriptor &&descriptor) {
 	const auto copy = descriptor;
+	// WHY: with a long name the earlier badges are clamped to the right
+	// edge and the project badge was drawn on top of them. Leave its place.
+	if (descriptor.premium
+		&& descriptor.premiumFg
+		&& !AyuSettings::getInstance().hidePremiumStatuses()
+		&& ProjectBadges::For(descriptor.peer)) {
+		const auto customEmojiSkip = (st::emojiSize
+			- Ui::Text::AdjustCustomEmojiSize(st::emojiSize)) / 2;
+		const auto bare = getBareID(descriptor.peer);
+		const auto afterExtera = isCustomBadgePeer(bare)
+			|| isExteraPeer(bare)
+			|| isSupporterPeer(bare);
+		if (!afterExtera) {
+			descriptor.rectForName.setWidth(
+				descriptor.rectForName.width()
+					- (descriptor.premium->width() - 4 * customEmojiSkip));
+		}
+	}
 	const auto result = drawGetWidthInner(p, std::move(descriptor));
 	return result + drawProjectBadge(p, copy, result);
 }
