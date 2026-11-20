@@ -9,6 +9,7 @@
 #include "boxes/translate_box.h"
 #include "boxes/download_path_box.h"
 #include "extera/extera_config.h"
+#include "extera/extera_ws_proxy.h"
 #include "extera/extera_menu.h"
 #include "history/view/media/history_view_sticker.h"
 #include "extera/extera_navigation.h"
@@ -123,6 +124,9 @@ using Phrase = tr::phrase<>;
 // One line under a switch that says what it really does.
 [[nodiscard]] QString FeatureHint(const QString &key) {
 	static const auto hints = QHash<QString, std::pair<QString, QString>>{
+		{ u"wsproxy_enabled"_q, { u"Локальный прокси на 127.0.0.1 переносит трафик Telegram через WebSocket. Включает его в списке прокси сам."_q, u"A local proxy on 127.0.0.1 carries Telegram traffic over WebSocket. Adds itself to the proxy list."_q } },
+		{ u"wsproxy_fronting"_q, { u"Другое имя в TLS, если прямое подключение к шлюзу блокируется."_q, u"A different name in TLS when the direct gateway connection is blocked."_q } },
+		{ u"wsproxy_tcp"_q, { u"Если WebSocket недоступен, идти к дата-центру напрямую по TCP."_q, u"If WebSocket is unavailable, go to the data center directly over TCP."_q } },
 		{ u"typing_animation"_q, { u"Набираемые символы плавно проявляются в поле ввода."_q, u"Typed characters fade in smoothly in the message field."_q } },
 		{ u"am_enabled"_q, { u"Новые сообщения появляются в открытом чате с анимацией."_q, u"New messages animate in an open chat."_q } },
 		{ u"am_on_open"_q, { u"Анимация и при первом открытии чата: сначала нижнее сообщение, за ним старые."_q, u"Also animate when a chat is first opened, newest first."_q } },
@@ -2061,6 +2065,42 @@ void BuildOther(SectionBuilder &builder) {
 				u"About"_q)),
 			.icon = { &st::menuIconInfo },
 			.onClick = [=] { Extera::ShowWelcomeBox(controller); },
+		});
+	});
+	builder.addDivider();
+
+	builder.addSkip();
+	builder.addSubsectionTitle(rpl::single(Extera::Text(
+		u"Обход блокировок"_q,
+		u"Bypass blocks"_q)));
+	builder.card([&] {
+		AddToggle(
+			builder,
+			u"wsproxy_enabled"_q,
+			rpl::single(Extera::Text(
+				u"WebSocket-прокси (tg-ws-proxy)"_q,
+				u"WebSocket proxy (tg-ws-proxy)"_q)));
+		AddToggle(
+			builder,
+			u"wsproxy_fronting"_q,
+			rpl::single(Extera::Text(
+				u"Маскировка соединения"_q,
+				u"Connection fronting"_q)));
+		AddToggle(
+			builder,
+			u"wsproxy_tcp"_q,
+			rpl::single(Extera::Text(
+				u"Запасной путь по TCP"_q,
+				u"TCP fallback"_q)));
+		builder.addButton({
+			.id = u"extera/wsproxy_status"_q,
+			.title = rpl::single(Extera::Text(
+				u"Статус прокси"_q,
+				u"Proxy status"_q)),
+			.icon = { &st::menuIconInfo },
+			.onClick = [=] {
+				controller->showToast(Extera::WsProxy::StatusText());
+			},
 		});
 	});
 	builder.addDivider();

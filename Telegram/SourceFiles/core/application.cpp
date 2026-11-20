@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "extera/extera_url_repair.h"
 #include "extera/extera_update.h"
 #include "extera/extera_streamer.h"
+#include "extera/extera_ws_proxy.h"
 
 #include "ui/widgets/checkbox.h"
 
@@ -214,6 +215,11 @@ Application::Application()
 	) | rpl::skip(1) | rpl::on_next([] {
 		Extera::Streamer::Refresh();
 	}, _lifetime);
+	Extera::Config::Instance().boolChanges(
+		u"wsproxy_enabled"_q
+	) | rpl::skip(1) | rpl::on_next([](bool enabled) {
+		Extera::WsProxy::SetEnabled(enabled);
+	}, _lifetime);
 	Extera::Config::Instance().intChanges(
 		u"folder_title_style"_q
 	) | rpl::on_next([=](int style) {
@@ -386,6 +392,7 @@ void Application::run() {
 
 	ValidateScale();
 
+	Extera::WsProxy::OnAppStart(); // Needs the settings, before they are applied.
 	refreshGlobalProxy(); // Depends on app settings being read.
 
 	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {

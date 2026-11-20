@@ -2139,6 +2139,8 @@ PRIVATE
     extera/extera_streamer.cpp
     extera/extera_update.cpp
     extera/extera_player.cpp
+    extera/extera_ws_proxy.cpp
+    extera/extera_ws_proxy.h
     extera/extera_player.h
     extera/extera_player_box.cpp
     extera/extera_player_box.h
