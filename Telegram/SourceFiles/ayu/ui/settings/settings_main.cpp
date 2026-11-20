@@ -88,13 +88,9 @@ void BuildVersionInfo(SectionBuilder &builder) {
 		return {
 			.widget = object_ptr<Ui::FlatLabel>(
 				ctx.container,
-				rpl::single(HeartGram::IsLite()
-					? Extera::Text(
-						u"Клиент Telegram с плагинами и функциями exteraGram. Сборка и изменения: @whyheartone."_q,
-						u"Telegram client with plugins and exteraGram features. Build and changes by @whyheartone."_q)
-					: Extera::Text(
-						u"Неофициальная сборка AyuGram Desktop с функциями exteraGram. Сборка и изменения: @whyheartone."_q,
-						u"Unofficial AyuGram Desktop build with exteraGram features. Build and changes by @whyheartone."_q)),
+				rpl::single(Extera::Text(
+					u"Неофициальный клиент Telegram с новыми возможностями"_q,
+					u"Unofficial Telegram client with new features"_q)),
 				st::centeredBoxLabel),
 			.align = style::al_top,
 		};
@@ -156,18 +152,6 @@ void BuildLinks(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 
 	builder.addButton({
-		.id = u"heartgram/developer"_q,
-		.title = rpl::single(Extera::Text(u"Разработчик"_q, u"Developer"_q)),
-		.icon = { &st::menuIconProfile },
-		.label = rpl::single(QString("@whyheartone")),
-		.onClick = [=] {
-			controller->showPeerByLink(Window::PeerByLinkInfo{
-				.usernameOrId = QString("whyheartone"),
-			});
-		},
-	});
-
-	builder.addButton({
 		.id = u"heartgram/repository"_q,
 		.title = rpl::single(Extera::Text(u"Репозиторий"_q, u"Repository"_q)),
 		.icon = { &st::menuIconIpAddress },
@@ -194,28 +178,6 @@ void BuildLinks(SectionBuilder &builder) {
 				});
 			},
 		});
-		builder.addButton({
-			.id = u"ayu/chat"_q,
-			.title = tr::ayu_LinksChats(),
-			.icon = { &st::menuIconChats },
-			.label = rpl::single(QString("@ayugramchat")),
-			.onClick = [=] {
-				controller->showPeerByLink(Window::PeerByLinkInfo{
-					.usernameOrId = QString("ayugramchat"),
-				});
-			},
-		});
-		builder.addButton({
-			.id = u"ayu/website"_q,
-			.title = tr::ayu_LinksDocumentation(),
-			.icon = { &st::menuIconIpAddress },
-			.label = rpl::single(QString("docs.ayugram.one")),
-			.onClick = [=] {
-				QDesktopServices::openUrl(
-					QString("https://docs.ayugram.one"));
-			},
-		});
-
 	}
 
 	builder.addSkip();

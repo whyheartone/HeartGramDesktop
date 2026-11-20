@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "base/options.h"
 #include "iv/iv_rich_page.h"
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/spoiler_mess.h"
@@ -383,6 +384,12 @@ TextWithEntities HistoryMessageForwarded::phrase(
 				Ui::Text::Wrapped(result, EntityType::CustomUrl, QString()), // Link 1.
 				tr::marked);
 		}
+	}
+	// WHY: like in exteraless, show when the original message was sent.
+	if (originalDate > 0 && psaType.isEmpty() && !story) {
+		result.append(QString(u" "_q) + QChar(0x00B7) + u" "_q);
+		result.append(Ui::FormatDateTimeSavedFrom(
+			base::unixtime::parse(originalDate)));
 	}
 	return result;
 }

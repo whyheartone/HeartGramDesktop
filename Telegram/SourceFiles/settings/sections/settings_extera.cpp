@@ -213,22 +213,43 @@ void AddToggle(
 			st::exteraSubtitle);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto &st = subtitleSt;
-		button->widthValue(
-		) | rpl::on_next([=, &st](int width) {
+		// WHY: the label sits under the title exactly where the button draws
+		// it (the same extra, none for a narrow row), and is placed again
+		// when the height settles, so it never creeps up to the title.
+		const auto place = [=, &st] {
+			const auto width = button->width();
 			label->resizeToWidth(width
 				- st.padding.left()
 				- st.padding.right()
 				- st.toggleSkip
 				- st.toggle.diameter * 2);
+			const auto rowExtra = (width < style::ConvertScale(160))
+				? 0
+				: AyuUiSettings::settingsRowExtra();
 			label->moveToLeft(
 				st.padding.left(),
-				st.padding.top() + AyuUiSettings::settingsRowExtra() + st.height + st::exteraSubtitleSkip);
+				st.padding.top() + rowExtra + st.height + st::exteraSubtitleSkip);
 			const auto extra = std::max(
 				label->height() - st::exteraSubtitle.style.font->height,
 				0);
 			auto padding = st.padding;
 			padding.setBottom(padding.bottom() + extra);
 			button->setPaddingOverride(padding);
+		};
+		button->widthValue(
+		) | rpl::on_next([=](int) {
+			place();
+		}, label->lifetime());
+		button->heightValue(
+		) | rpl::skip(1) | rpl::on_next([=, &st](int) {
+			label->moveToLeft(
+				st.padding.left(),
+				st.padding.top()
+					+ ((button->width() < style::ConvertScale(160))
+						? 0
+						: AyuUiSettings::settingsRowExtra())
+					+ st.height
+					+ st::exteraSubtitleSkip);
 		}, label->lifetime());
 	}
 	if (button) {
@@ -2026,15 +2047,6 @@ void BuildOther(SectionBuilder &builder) {
 				u"https://t.me/ayugram"_q,
 				{ &st::exteraIconChannel });
 		}
-		AddLink(
-			builder,
-			u"credit_extera"_q,
-			rpl::single(Extera::Text(
-				u"Порт exteraGram: exteraDesktop"_q,
-				u"exteraGram port: exteraDesktop"_q)),
-			u"@metawka"_q,
-			u"https://t.me/metawka"_q,
-			{ &st::exteraIconDeveloper });
 		builder.addButton({
 			.id = u"extera/show_welcome"_q,
 			.title = rpl::single(Extera::Text(
