@@ -89,6 +89,8 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"remove_message_tail"_q, false },
 		{ u"edited_icon"_q, false },
 		{ u"typing_animation"_q, true },
+		{ u"update_auto"_q, true },
+		{ u"update_prerelease"_q, false },
 		{ u"wsproxy_enabled"_q, false },
 		{ u"wsproxy_fronting"_q, false },
 		{ u"wsproxy_tcp"_q, true },

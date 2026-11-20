@@ -276,7 +276,7 @@ void AddToggle(
 				Extera::Text(u"Скопировать ссылку"_q, u"Copy link"_q),
 				[=] {
 					QGuiApplication::clipboard()->setText(
-						u"tg://settings/heartgram?s=extera/"_q + key);
+						u"https://t.me/heartgramclient?setting="_q + key);
 					controller->showToast(Extera::Text(
 						u"Ссылка скопирована"_q,
 						u"Link copied"_q));

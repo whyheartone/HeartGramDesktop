@@ -393,6 +393,7 @@ void Application::run() {
 	ValidateScale();
 
 	Extera::WsProxy::OnAppStart(); // Needs the settings, before they are applied.
+	Extera::Update::Start();
 	refreshGlobalProxy(); // Depends on app settings being read.
 
 	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {

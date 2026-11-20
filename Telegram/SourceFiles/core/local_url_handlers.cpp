@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "settings/settings_builder.h"
 #include "core/local_url_handlers.h"
 #include "extera/extera_ai_chat.h"
 #include "extera/extera_welcome.h"
@@ -663,6 +664,29 @@ bool ResolveUsernameOrPhone(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
+
+	// A link to a HeartGram setting goes through the channel, so that other
+	// clients simply open the channel: t.me/heartgramclient?setting=key.
+	if (!params.value(u"domain"_q).compare(
+			u"heartgramclient"_q,
+			Qt::CaseInsensitive)
+		&& !params.value(u"setting"_q).isEmpty()) {
+		const auto id = params.value(u"setting"_q);
+		const auto entries = ::Settings::Builder::SearchRegistry::Instance()
+			.collectAll(&controller->session());
+		for (const auto &entry : entries) {
+			const auto wanted = u"extera/"_q + id;
+			if (entry.id == wanted
+				|| entry.id == id
+				|| entry.altIds.contains(wanted)
+				|| entry.altIds.contains(id)) {
+				controller->window().setHighlightControlId(entry.id);
+				controller->showSettings(entry.section);
+				controller->window().activate();
+				return true;
+			}
+		}
+	}
 
 	// A dApp link must not choose the account, so this precedes "acc".
 	if (!params.value(u"domain"_q).compare(

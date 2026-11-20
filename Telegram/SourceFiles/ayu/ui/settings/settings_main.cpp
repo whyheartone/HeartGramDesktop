@@ -4,6 +4,9 @@
 // but be respectful and credit the original author.
 //
 // Copyright @Radolyn, 2026
+#include "extera/extera_update.h"
+#include "extera/extera_config.h"
+#include "extera/extera_text.h"
 #include "ayu/ui/settings/settings_main.h"
 
 #include "settings/sections/settings_main.h"
@@ -95,6 +98,71 @@ void BuildVersionInfo(SectionBuilder &builder) {
 			.align = style::al_top,
 		};
 	});
+}
+
+void BuildUpdates(SectionBuilder &builder) {
+	builder.addSkip();
+	builder.addDivider();
+	builder.addSkip();
+	builder.addSubsectionTitle(rpl::single(Extera::Text(
+		u"Обновления"_q,
+		u"Updates"_q)));
+	builder.addButton({
+		.id = u"heartgram/update"_q,
+		.title = Extera::Update::AvailableValue(
+		) | rpl::map([](bool available) {
+			return available
+				? Extera::Text(
+					u"Обновить до сборки "_q,
+					u"Update to build "_q)
+					+ Extera::Update::AvailableVersion()
+				: Extera::Text(
+					u"Проверить обновления"_q,
+					u"Check for updates"_q);
+		}),
+		.icon = { &st::menuIconInfo },
+		.label = Extera::Update::StatusValue(),
+		.onClick = [] {
+			if (Extera::Update::AvailableVersion().isEmpty()) {
+				Extera::Update::CheckNow(nullptr);
+			} else {
+				Extera::Update::Install();
+			}
+		},
+	});
+	builder.addButton({
+		.id = u"heartgram/update_notes"_q,
+		.title = rpl::single(Extera::Text(
+			u"Что нового"_q,
+			u"What is new"_q)),
+		.icon = { &st::menuIconInfo },
+		.onClick = [] { Extera::Update::OpenRelease(); },
+		.shown = Extera::Update::AvailableValue(),
+	});
+	const auto addSwitch = [&](const QString &key, const QString &title) {
+		const auto button = builder.addButton({
+			.id = u"heartgram/"_q + key,
+			.title = rpl::single(title),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(Extera::Bool(key)),
+		});
+		if (button) {
+			button->toggledValue(
+			) | rpl::on_next([=](bool value) {
+				Extera::Config::Instance().setBool(key, value);
+			}, button->lifetime());
+		}
+	};
+	addSwitch(
+		u"update_prerelease"_q,
+		Extera::Text(
+			u"Предварительные версии"_q,
+			u"Pre-releases"_q));
+	addSwitch(
+		u"update_auto"_q,
+		Extera::Text(
+			u"Проверять автоматически"_q,
+			u"Check automatically"_q));
 }
 
 void BuildCategories(SectionBuilder &builder) {
@@ -192,6 +260,7 @@ const auto kMeta = BuildHelper({
 	BuildLogo(builder);
 	builder.addSkip();
 	BuildVersionInfo(builder);
+	BuildUpdates(builder);
 	BuildCategories(builder);
 	BuildLinks(builder);
 });
