@@ -1,5 +1,6 @@
 // Updates of HeartGram Desktop from the releases of the public repository
-// whyheartone/HeartGram (tags "desktop-<build>", the asset HeartGram.exe).
+// whyheartone/HeartGramDesktop (tags "v<build>", a suffix like "-beta" makes
+// a pre-release, the asset HeartGram.exe).
 // A running exe can be renamed on Windows: the new file is downloaded next
 // to it, checked against SHA-256, swapped in and the application restarts.
 #pragma once

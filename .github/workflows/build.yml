@@ -280,6 +280,8 @@ jobs:
           $out = Join-Path $env:TBUILD "$env:REPO_NAME\out\Release"
           $dir = New-Item -ItemType Directory -Force 'HeartGram-windows-x64'
           Copy-Item (Join-Path $out 'HeartGram.exe') $dir
+          # The updater of the client takes the bare exe from the release.
+          Copy-Item (Join-Path $out 'HeartGram.exe') 'HeartGram.exe'
           if (Test-Path (Join-Path $out 'Updater.exe')) { Copy-Item (Join-Path $out 'Updater.exe') $dir }
           Copy-Item -Recurse (Join-Path $out 'python') (Join-Path $dir 'python')
           Compress-Archive -Path $dir -DestinationPath 'HeartGram-windows-x64.zip' -Force
@@ -289,7 +291,9 @@ jobs:
         if: env.ONLY_CACHE == 'false'
         with:
           name: HeartGram-windows-x64
-          path: HeartGram-windows-x64.zip
+          path: |
+            HeartGram-windows-x64.zip
+            HeartGram.exe
           retention-days: 7
 
   linux:
@@ -455,4 +459,6 @@ jobs:
         with:
           files: |
             dist/HeartGram-windows-x64.zip
+            dist/HeartGram.exe
           body_path: RELEASE_NOTES.md
+          prerelease: ${{ contains(github.ref_name, '-') }}

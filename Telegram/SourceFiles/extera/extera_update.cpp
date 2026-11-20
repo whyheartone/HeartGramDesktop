@@ -76,7 +76,7 @@ struct State {
 
 [[nodiscard]] Release Pick(const QJsonArray &list, bool prereleases) {
 	static const auto tagPattern = QRegularExpression(
-		u"^desktop-v?(\\d+)$"_q);
+		u"^(?:v|desktop-v?)(\\d+)(?:-.+)?$"_q);
 	static const auto hashPattern = QRegularExpression(
 		u"\\b([0-9a-fA-F]{64})\\b"_q);
 	auto best = Release();
@@ -211,7 +211,7 @@ void CheckNow(Fn<void(CheckResult)> done) {
 	SetStatus(Extera::Text(u"Проверка…"_q, u"Checking…"_q));
 	const auto prereleases = Extera::Bool(u"update_prerelease"_q);
 	const auto reply = Manager()->get(MakeRequest(
-		u"https://api.github.com/repos/whyheartone/HeartGram/releases?per_page=40"_q));
+		u"https://api.github.com/repos/whyheartone/HeartGramDesktop/releases?per_page=40"_q));
 	QObject::connect(reply, &QNetworkReply::finished, [=] {
 		reply->deleteLater();
 		if (reply->error() != QNetworkReply::NoError) {
@@ -344,7 +344,7 @@ void Install() {
 void OpenRelease() {
 	const auto &release = Instance().release;
 	UrlClickHandler::Open(release.page.isEmpty()
-		? u"https://github.com/whyheartone/HeartGram/releases"_q
+		? u"https://github.com/whyheartone/HeartGramDesktop/releases"_q
 		: release.page);
 }
 
