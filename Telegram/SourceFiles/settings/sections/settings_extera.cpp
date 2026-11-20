@@ -9,6 +9,11 @@
 #include "boxes/translate_box.h"
 #include "boxes/download_path_box.h"
 #include "extera/extera_config.h"
+#include "base/event_filter.h"
+#include "ui/widgets/popup_menu.h"
+#include "styles/style_menu_icons.h"
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
 #include "extera/extera_ws_proxy.h"
 #include "extera/extera_menu.h"
 #include "history/view/media/history_view_sticker.h"
@@ -258,6 +263,28 @@ void AddToggle(
 		}, label->lifetime());
 	}
 	if (button) {
+		// WHY: a link to this very switch, to share or to bookmark.
+		base::install_event_filter(button, [=](not_null<QEvent*> e) {
+			if (e->type() != QEvent::ContextMenu) {
+				return base::EventFilterResult::Continue;
+			}
+			const auto menu = new Ui::PopupMenu(
+				nullptr,
+				st::popupMenuWithIcons);
+			menu->setAttribute(Qt::WA_DeleteOnClose);
+			menu->addAction(
+				Extera::Text(u"Скопировать ссылку"_q, u"Copy link"_q),
+				[=] {
+					QGuiApplication::clipboard()->setText(
+						u"tg://settings/heartgram?s=extera/"_q + key);
+					controller->showToast(Extera::Text(
+						u"Ссылка скопирована"_q,
+						u"Link copied"_q));
+				},
+				&st::menuIconCopy);
+			menu->popup(QCursor::pos());
+			return base::EventFilterResult::Cancel;
+		}, button->lifetime());
 		button->toggledValue(
 		) | rpl::on_next([=](bool value) {
 			Config().setBool(key, value);

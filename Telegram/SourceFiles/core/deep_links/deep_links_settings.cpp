@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_notifications_type.h"
 #include "settings/settings_power_saving.h"
 #include "settings/settings_search.h"
+#include "settings/settings_builder.h"
 #include "settings/settings_experimental.h"
 #include "settings/sections/settings_premium.h"
 #include "ui/power_saving.h"
@@ -207,6 +208,28 @@ Result OpenInternalUrl(const Context &ctx, const QString &url) {
 			.sessionWindow = base::make_weak(ctx.controller),
 		}));
 	return Result::Handled;
+}
+
+// A link to one setting: tg://settings/heartgram?s=extera/am_enabled opens the
+// page that holds it and highlights it.
+Result ShowHeartGramControl(const Context &ctx) {
+	if (!ctx.controller) {
+		return Result::NeedsAuth;
+	}
+	const auto id = ctx.params.value(u"s"_q);
+	if (id.isEmpty()) {
+		return Result::NotFound;
+	}
+	const auto entries = ::Settings::Builder::SearchRegistry::Instance()
+		.collectAll(&ctx.controller->session());
+	for (const auto &entry : entries) {
+		if (entry.id == id || entry.altIds.contains(id)) {
+			ctx.controller->setHighlightControlId(entry.id);
+			ctx.controller->showSettings(entry.section);
+			return Result::Handled;
+		}
+	}
+	return Result::NotFound;
 }
 
 Result ShowMyProfile(const Context &ctx) {
@@ -523,6 +546,10 @@ void RegisterSettingsHandlers(Router &router) {
 		.action = SettingsSection{ ::Settings::FoldersId() },
 	});
 
+	router.add(u"settings"_q, {
+		.path = u"heartgram"_q,
+		.action = CodeBlock{ ShowHeartGramControl },
+	});
 	router.add(u"settings"_q, {
 		.path = u"extera"_q,
 		.action = SettingsSection{ ::Settings::ExteraId() },
