@@ -230,8 +230,7 @@ void DebugNote(const QString &line) {
 	if (file.open(QIODevice::Append | QIODevice::Text)) {
 		file.write((QDateTime::currentDateTime().toString(u"hh:mm:ss.zzz "_q)
 			+ line
-			+ u"
-"_q).toUtf8());
+			+ QChar('\n')).toUtf8());
 	}
 }
 
