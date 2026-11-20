@@ -10,6 +10,9 @@
 #include "history/history_item.h"
 
 #include <QtCore/QtMath>
+#include <QtCore/QCoreApplication>
+#include <QtCore/QDateTime>
+#include <QtCore/QFile>
 
 #include <array>
 #include <deque>
@@ -216,7 +219,24 @@ struct Profile {
 
 } // namespace
 
+void DebugNote(const QString &line) {
+	static auto count = 0;
+	if (count > 400) {
+		return;
+	}
+	++count;
+	auto file = QFile(QCoreApplication::applicationDirPath()
+		+ u"/animation_debug.txt"_q);
+	if (file.open(QIODevice::Append | QIODevice::Text)) {
+		file.write((QDateTime::currentDateTime().toString(u"hh:mm:ss.zzz "_q)
+			+ line
+			+ u"
+"_q).toUtf8());
+	}
+}
+
 void NoteOpened() {
+	DebugNote(u"NoteOpened"_q);
 	LOG(("AnimatedMessages: NoteOpened, am_enabled %1, am_on_open %2, entries %3.").arg(Bool(u"am_enabled"_q) ? 1 : 0).arg(Bool(u"am_on_open"_q) ? 1 : 0).arg(int(Entries().size())));
 	OpenedAt = 0;
 	OpenedPending = true;
@@ -264,6 +284,7 @@ Frames FramesFor(
 	static auto calls = 0;
 	if (calls < 80) {
 		++calls;
+		DebugNote(u"FramesFor "_q + QString::number(item->id.bare));
 		LOG(("AnimatedMessages: FramesFor %1, enabled %2, on_open %3.").arg(item->id.bare).arg(Bool(u"am_enabled"_q) ? 1 : 0).arg(Bool(u"am_on_open"_q) ? 1 : 0));
 	}
 	if (!Bool(u"am_enabled"_q)) {

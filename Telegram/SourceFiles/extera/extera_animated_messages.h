@@ -18,6 +18,8 @@ struct Frame {
 
 void Mark(not_null<HistoryItem*> item);
 void NoteOpened();
+// Appends a line to animation_debug.txt next to the exe, independent of the main log.
+void DebugNote(const QString &line);
 
 struct Frames {
 	std::optional<Frame> message;

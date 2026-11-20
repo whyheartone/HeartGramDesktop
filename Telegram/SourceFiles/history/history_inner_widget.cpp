@@ -445,6 +445,7 @@ HistoryInner::HistoryInner(
 
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	LOG(("AnimatedMessages: HistoryInner created for peer %1.").arg(_peer->id.value));
+	Extera::AnimatedMessages::DebugNote(u"HistoryInner created"_q);
 	Extera::AnimatedMessages::NoteOpened();
 	_extraAnimation.init([=](crl::time) {
 		// WHY: other parts of the chat repaint on their own (clock, typing,
@@ -1530,6 +1531,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	static auto paintLogs = 0;
 	if (paintLogs < 60) {
 		++paintLogs;
+		Extera::AnimatedMessages::DebugNote(u"HistoryInner paintEvent"_q);
 		LOG(("AnimatedMessages: paintEvent, overlapped %1, pendingResized %2, clip %3x%4.").arg(overlapped ? 1 : 0).arg(pendingResized ? 1 : 0).arg(e->rect().width()).arg(e->rect().height()));
 	}
 	_readMetricsTracker->setScreenActive(!overlapped

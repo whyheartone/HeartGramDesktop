@@ -88,6 +88,7 @@ constexpr auto kSaveDelay = crl::time(1000);
 		{ u"hide_send_as"_q, false },
 		{ u"remove_message_tail"_q, false },
 		{ u"edited_icon"_q, false },
+		{ u"typing_animation"_q, true },
 		{ u"online_indicator"_q, false },
 		{ u"forward_count"_q, false },
 		{ u"hide_share_button"_q, false },
@@ -189,6 +190,7 @@ void Config::setWorkingDir(const QString &path) {
 	AyuUiSettings::setMaterialMenus(boolValue(u"md3_menus"_q));
 	AyuUiSettings::setMaterialDialogs(boolValue(u"md3_dialogs"_q));
 	AyuUiSettings::setMaterialSettings(boolValue(u"md3_settings"_q));
+	AyuUiSettings::setTypingAnimation(boolValue(u"typing_animation"_q));
 }
 
 QString Config::path() const {
@@ -241,6 +243,8 @@ void Config::set(const QString &key, QJsonValue value) {
 		AyuUiSettings::setMaterialDialogs(boolValue(key));
 	} else if (key == u"md3_settings"_q) {
 		AyuUiSettings::setMaterialSettings(boolValue(key));
+	} else if (key == u"typing_animation"_q) {
+		AyuUiSettings::setTypingAnimation(boolValue(key));
 	}
 	if (key.startsWith(u"md3_"_q)) {
 		RepaintAll();

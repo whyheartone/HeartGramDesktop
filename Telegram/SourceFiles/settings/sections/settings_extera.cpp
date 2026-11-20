@@ -123,6 +123,7 @@ using Phrase = tr::phrase<>;
 // One line under a switch that says what it really does.
 [[nodiscard]] QString FeatureHint(const QString &key) {
 	static const auto hints = QHash<QString, std::pair<QString, QString>>{
+		{ u"typing_animation"_q, { u"Набираемые символы плавно проявляются в поле ввода."_q, u"Typed characters fade in smoothly in the message field."_q } },
 		{ u"am_enabled"_q, { u"Новые сообщения появляются в открытом чате с анимацией."_q, u"New messages animate in an open chat."_q } },
 		{ u"am_on_open"_q, { u"Анимация и при первом открытии чата: сначала нижнее сообщение, за ним старые."_q, u"Also animate when a chat is first opened, newest first."_q } },
 		{ u"am_dark_safe"_q, { u"Сообщение до начала анимации остаётся чуть видимым, без чёрных вспышек на тёмной теме."_q, u"A message stays faintly visible before its animation starts, no black flashes on dark themes."_q } },
@@ -1667,6 +1668,12 @@ void BuildChats(SectionBuilder &builder) {
 			builder,
 			u"edited_icon"_q,
 			tr::lng_extera_edited_icon());
+		AddToggle(
+			builder,
+			u"typing_animation"_q,
+			rpl::single(Extera::Text(
+				u"Анимация ввода текста"_q,
+				u"Typing animation"_q)));
 		AddToggle(
 			builder,
 			u"online_indicator"_q,
