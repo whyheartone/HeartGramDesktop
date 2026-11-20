@@ -338,13 +338,153 @@ void LyricsLoader::request(const LyricsQuery &query) {
 				store(ParseSynced(best));
 				return;
 			}
-			// WHY: some tracks only have plain text on lrclib, shown as is.
+			// WHY: some tracks only have plain text on lrclib, it is the last resort
+			// after the other sources.
 			auto plain = pick(u"plainLyrics"_q);
 			if (plain.isEmpty()) {
 				plain = exactPlain;
 			}
-			store(plain.isEmpty() ? Lines() : ParsePlain(plain));
+			fallbackLyrics(
+				name,
+				artist,
+				query.album.trimmed(),
+				duration,
+				plain,
+				store);
 		});
+	});
+}
+
+void LyricsLoader::fallbackLyrics(
+		QString name,
+		QString artist,
+		QString album,
+		int duration,
+		QString plain,
+		Fn<void(Lines)> store) {
+	const auto generation = _generation;
+	const auto finishPlain = [=] {
+		store(plain.isEmpty() ? Lines() : ParsePlain(plain));
+	};
+
+	auto plus = QUrl(u"https://lyricsplus.binimum.org/v2/lyrics/get"_q);
+	auto plusItems = QUrlQuery();
+	plusItems.addQueryItem(u"title"_q, name);
+	plusItems.addQueryItem(u"artist"_q, artist);
+	if (duration > 0) {
+		plusItems.addQueryItem(u"duration"_q, QString::number(duration));
+	}
+	if (!album.isEmpty()) {
+		plusItems.addQueryItem(u"album"_q, album);
+	}
+	plus.setQuery(plusItems);
+
+	auto mux = QUrl(u"https://api.lrcmux.dev/get"_q);
+	auto muxItems = QUrlQuery();
+	muxItems.addQueryItem(u"title"_q, name);
+	muxItems.addQueryItem(u"level"_q, u"line"_q);
+	muxItems.addQueryItem(u"format"_q, u"json"_q);
+	if (!artist.isEmpty()) {
+		muxItems.addQueryItem(u"artist"_q, artist);
+	}
+	if (!album.isEmpty()) {
+		muxItems.addQueryItem(u"album"_q, album);
+	}
+	if (duration > 0) {
+		muxItems.addQueryItem(u"duration"_q, QString::number(duration));
+	}
+	mux.setQuery(muxItems);
+
+	const auto tryPlus = [=] {
+		if (generation != _generation) {
+			return;
+		}
+		if (artist.isEmpty()) {
+			finishPlain();
+			return;
+		}
+		fetch(plus, [=](const QByteArray &data) {
+			if (generation != _generation) {
+				return;
+			}
+			const auto object = QJsonDocument::fromJson(data).object();
+			const auto type = object.value(u"type"_q).toString();
+			const auto rows = object.value(u"lyrics"_q).toArray();
+			const auto words = (type.compare(u"Word"_q, Qt::CaseInsensitive) == 0);
+			if (rows.isEmpty()
+				|| (!words && type.compare(u"Line"_q, Qt::CaseInsensitive) != 0)) {
+				finishPlain();
+				return;
+			}
+			auto lines = Lines();
+			for (const auto &entry : rows) {
+				const auto row = entry.toObject();
+				auto text = QString();
+				if (words) {
+					for (const auto &part : row.value(u"syllabus"_q).toArray()) {
+						const auto syllable = part.toObject();
+						if (!syllable.value(u"isBackground"_q).toBool()) {
+							text += syllable.value(u"text"_q).toString();
+						}
+					}
+				} else {
+					text = row.value(u"text"_q).toString();
+				}
+				text = text.trimmed();
+				if (text.isEmpty()) {
+					continue;
+				}
+				lines.push_back({
+					.at = crl::time(row.value(u"time"_q).toDouble()),
+					.text = text,
+				});
+			}
+			if (lines.size() < 2) {
+				finishPlain();
+				return;
+			}
+			store(std::move(lines));
+		});
+	};
+
+	fetch(mux, [=](const QByteArray &data) {
+		if (generation != _generation) {
+			return;
+		}
+		const auto object = QJsonDocument::fromJson(data).object();
+		const auto meta = object.value(u"meta"_q).toObject();
+		const auto track = object.value(u"track"_q).toObject();
+		const auto trackDuration = track.value(u"duration"_q).toInt();
+		const auto fits = (duration <= 0)
+			|| (trackDuration <= 0)
+			|| (std::abs(trackDuration - duration) <= 15);
+		const auto level = meta.value(u"level"_q).toString();
+		const auto rows = object.value(u"lines"_q).toArray();
+		if (!fits
+			|| meta.value(u"instrumental"_q).toBool()
+			|| rows.isEmpty()
+			|| level.isEmpty()
+			|| level == u"none"_q) {
+			tryPlus();
+			return;
+		}
+		auto lines = Lines();
+		for (const auto &entry : rows) {
+			const auto row = entry.toObject();
+			const auto text = row.value(u"text"_q).toString().trimmed();
+			if (text.isEmpty()) {
+				continue;
+			}
+			lines.push_back({
+				.at = crl::time(std::max(0., row.value(u"start"_q).toDouble())),
+				.text = text,
+			});
+		}
+		if (lines.size() < 2) {
+			tryPlus();
+			return;
+		}
+		store(std::move(lines));
 	});
 }
 

@@ -67,6 +67,15 @@ public:
 
 private:
 	void fetch(const QUrl &url, Fn<void(const QByteArray &)> done);
+	// WHY: when lrclib has no synced text, other sources are tried one by one
+	// (the same ones exteraless uses), the plain text is the last resort.
+	void fallbackLyrics(
+		QString name,
+		QString artist,
+		QString album,
+		int duration,
+		QString plain,
+		Fn<void(Lines)> store);
 	void finish(Lines lines);
 
 	const Fn<void(Lines)> _done;
